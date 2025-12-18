@@ -1,0 +1,110 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh; /* Use dynamic viewport height for mobile */
+  width: 100vw;
+  width: 100dvw; /* Use dynamic viewport width for mobile */
+  position: relative;
+  overflow: hidden;
+}
+
+.editor-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  border-top: 1px solid var(--app-border-color, #333);
+  position: relative;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.editor-pane {
+  border-right: 1px solid var(--app-border-color, #333);
+}
+
+.preview-pane {
+  flex: 1;
+}
+
+.divider {
+  width: 4px;
+  cursor: col-resize;
+  flex-shrink: 0;
+  position: relative;
+  background-color: var(--app-border-color, #333);
+  transition: background-color 0.2s;
+}
+
+.divider:hover {
+  background-color: var(--app-border-color, #555);
+}
+
+.divider.dragging {
+  background-color: var(--app-border-color, #777);
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  cursor: col-resize;
+}
+
+.editor-pane {
+  overflow: hidden;
+}
+
+.preview-pane {
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .app {
+    /* Account for mobile toolbar at bottom when keyboard is visible */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .editor-container {
+    flex-direction: column;
+    /* Add padding at bottom when mobile toolbar is visible */
+    padding-bottom: 0;
+  }
+  
+  .pane {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    border-right: none;
+    border-bottom: none;
+    height: 100%;
+  }
+  
+  .pane:last-child {
+    border-bottom: none;
+  }
+
+  .divider {
+    display: none;
+  }
+
+  /* Hide desktop toolbar on mobile */
+  .toolbar {
+    display: none;
+  }
+
+  /* Ensure editor and preview take full height on mobile */
+  .editor-pane,
+  .preview-pane {
+    height: 100%;
+    flex: 1;
+  }
+}
