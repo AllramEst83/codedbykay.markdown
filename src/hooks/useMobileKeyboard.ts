@@ -41,7 +41,6 @@ export function useMobileKeyboard() {
 
       const viewportHeight = window.visualViewport.height
       const windowHeight = window.innerHeight
-      const viewportTop = window.visualViewport.offsetTop || 0
       const heightDifference = windowHeight - viewportHeight
 
       // Keyboard is considered visible if viewport height decreased significantly
@@ -52,8 +51,6 @@ export function useMobileKeyboard() {
       // Calculate the offset: the distance from the bottom of the visual viewport to the bottom of the window
       // This tells us where to position the toolbar (above the keyboard)
       // We use heightDifference directly as it represents the keyboard height
-      // On some browsers (like iOS Safari), the viewport may also scroll (offsetTop), 
-      // but we position relative to the visual viewport bottom, so heightDifference is sufficient
       const offset = keyboardVisible ? heightDifference : 0
 
       // Only update if state actually changed to avoid unnecessary re-renders
