@@ -90,6 +90,23 @@
   z-index: 1;
 }
 
+.toolbar-heading-group {
+  position: relative;
+}
+
+.toolbar-heading-icon {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--toolbar-text, #cccccc);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .toolbar-select {
   height: 32px;
   padding: 4px 28px 4px 8px;

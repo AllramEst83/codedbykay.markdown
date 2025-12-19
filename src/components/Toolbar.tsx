@@ -21,7 +21,8 @@ import {
   Sparkles,
   Images,
   Briefcase,
-  Flower2
+  Flower2,
+  Heading
 } from 'lucide-react'
 import type { ToolbarProps } from '../types/components'
 import './Toolbar.css'
@@ -117,6 +118,23 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
         editorRef!.wrapSelection('```\n', '\n```')
       } else {
         editorRef!.insertText('\n```\ncode\n```\n')
+      }
+    })
+  }, [handleAction, editorRef])
+
+  const insertHeading = useCallback((level: number) => {
+    handleAction(() => {
+      if (editorRef!.hasSelection()) {
+        const selectedText = editorRef!.getSelectedText()
+        // Split by lines and add heading prefix to each line
+        const lines = selectedText.split('\n')
+        const headingPrefix = '#'.repeat(level) + ' '
+        const formatted = lines.map(line => line.trim() ? `${headingPrefix}${line}` : line).join('\n')
+        editorRef!.replaceSelection(formatted)
+      } else {
+        // Insert heading example
+        const headingPrefix = '#'.repeat(level) + ' '
+        editorRef!.insertText(`${headingPrefix}Heading`)
       }
     })
   }, [handleAction, editorRef])
@@ -351,6 +369,31 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
       <div className="toolbar-separator" />
 
       <div className="toolbar-group">
+        <div className="toolbar-group toolbar-heading-group">
+          <select
+            className="toolbar-select"
+            onChange={(e) => {
+              const level = parseInt(e.target.value)
+              if (level > 0) {
+                insertHeading(level)
+                // Reset select to show placeholder
+                e.target.value = ''
+              }
+            }}
+            title="Heading"
+            aria-label="Select Heading"
+            defaultValue=""
+          >
+            <option value="" disabled>Heading</option>
+            <option value="1">Heading 1</option>
+            <option value="2">Heading 2</option>
+            <option value="3">Heading 3</option>
+            <option value="4">Heading 4</option>
+          </select>
+          <div className="toolbar-heading-icon">
+            <Heading size={14} />
+          </div>
+        </div>
         <button 
           className="toolbar-button" 
           onClick={insertBlockquote}
