@@ -264,24 +264,6 @@
   --modal-focus-ring: rgba(192, 38, 211, 0.3);
 }
 
-.modal-container[data-theme="rainbow"] {
-  --modal-bg: #1a0a2d;
-  --modal-text: #00ffff;
-  --modal-text-secondary: #ff69b4;
-  --modal-border: #ff00ff;
-  --modal-input-bg: #0a0a1a;
-  --modal-input-border: #ff00ff;
-  --modal-input-focus-border: #00ffff;
-  --modal-input-focus-ring: rgba(0, 255, 255, 0.3);
-  --modal-text-placeholder: #ff69b4;
-  --modal-button-hover-bg: #2d1a4d;
-  --modal-border-hover: #ff1493;
-  --modal-button-confirm-bg: #00ffff;
-  --modal-button-confirm-hover-bg: #00cccc;
-  --modal-button-confirm-text: #000000;
-  --modal-focus-ring: rgba(0, 255, 255, 0.4);
-}
-
 .modal-container[data-theme="office-plain"] {
   --modal-bg: #f8f8f8;
   --modal-text: #2c2c2c;

@@ -11,8 +11,6 @@ export const Spinner = ({ size = 24, className = '', message }: SpinnerProps) =>
     ? '#e8e8e8'
     : theme === 'light'
     ? '#212121'
-    : theme === 'rainbow'
-    ? '#00ffff'
     : theme === 'office-plain'
     ? '#2c2c2c' // Professional dark gray
     : theme === '70s-swirl'

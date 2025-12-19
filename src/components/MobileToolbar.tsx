@@ -241,8 +241,6 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
     ? '#252526' 
     : theme === 'light' 
     ? '#f5f5f5'
-    : theme === 'rainbow'
-    ? '#1a0a2d' // Dark blue-purple
     : theme === 'office-plain'
     ? '#e8e8e8' // Neutral office gray
     : theme === '70s-swirl'
@@ -253,8 +251,6 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
     ? '#e8e8e8'
     : theme === 'light'
     ? '#212121'
-    : theme === 'rainbow'
-    ? '#00ff00' // Bright lime green
     : theme === 'office-plain'
     ? '#2c2c2c' // Professional dark gray
     : theme === '70s-swirl'
@@ -264,8 +260,6 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
     ? '#2a2d2e'
     : theme === 'light'
     ? '#e8e8e8'
-    : theme === 'rainbow'
-    ? '#2d1a4d' // Lighter purple
     : theme === 'office-plain'
     ? '#d0d0d0' // Subtle gray hover
     : theme === '70s-swirl'

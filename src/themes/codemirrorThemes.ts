@@ -63,52 +63,6 @@ export const unicornPastelTheme: Extension = EditorView.theme({
   },
 })
 
-export const rainbowTheme: Extension = EditorView.theme({
-  '&': {
-    backgroundColor: '#0a0a1a', // Very dark blue-black base for maximum color pop
-    color: '#ff1493', // Hot pink text
-  },
-  '.cm-content': {
-    color: '#ff1493', // Hot pink
-  },
-  '.cm-focused': {
-    outline: '2px solid #00ffff',
-  },
-  '.cm-scroller': {
-    backgroundColor: '#0a0a1a',
-  },
-  '.cm-gutters': {
-    backgroundColor: '#1a0a2d', // Dark blue-purple
-    borderRight: '3px solid #ff00ff', // Bright magenta border
-    boxShadow: '2px 0 8px rgba(255, 0, 255, 0.3)',
-  },
-  '.cm-lineNumbers .cm-gutterElement': {
-    color: '#00ff00', // Bright lime green for line numbers
-    fontWeight: 'bold',
-  },
-  '.cm-cursor': {
-    borderLeftColor: '#ffff00', // Bright yellow cursor
-    borderLeftWidth: '3px',
-  },
-  '.cm-cursor-primary': {
-    borderLeftColor: '#ffff00',
-    borderLeftWidth: '3px',
-  },
-  '.cm-dropCursor': {
-    borderLeftColor: '#00ffff',
-    borderLeftWidth: '3px',
-  },
-  '.cm-selectionBackground': {
-    backgroundColor: '#ff00ff60', // More visible magenta selection
-  },
-  '.cm-activeLine': {
-    backgroundColor: '#1a0a3d40', // Highlighted active line with purple tint
-  },
-  '.cm-activeLineGutter': {
-    backgroundColor: '#2d1a4d',
-  },
-})
-
 export const officePlainTheme: Extension = EditorView.theme({
   '&': {
     backgroundColor: '#f8f8f8', // Neutral office gray

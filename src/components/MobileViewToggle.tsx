@@ -12,8 +12,6 @@ const MobileViewToggleComponent = ({ viewMode, onViewModeChange }: MobileViewTog
     ? '#252526' 
     : theme === 'light' 
     ? '#f5f5f5'
-    : theme === 'rainbow'
-    ? '#1a0a2d' // Dark blue-purple
     : theme === 'office-plain'
     ? '#e8e8e8' // Neutral office gray
     : theme === '70s-swirl'
@@ -24,8 +22,6 @@ const MobileViewToggleComponent = ({ viewMode, onViewModeChange }: MobileViewTog
     ? '#e8e8e8'
     : theme === 'light'
     ? '#212121'
-    : theme === 'rainbow'
-    ? '#ffff00' // Bright yellow
     : theme === 'office-plain'
     ? '#2c2c2c' // Professional dark gray
     : theme === '70s-swirl'
@@ -35,8 +31,6 @@ const MobileViewToggleComponent = ({ viewMode, onViewModeChange }: MobileViewTog
     ? '#007acc'
     : theme === 'light'
     ? '#0066cc'
-    : theme === 'rainbow'
-    ? '#ff00ff' // Bright magenta for active
     : theme === 'office-plain'
     ? '#0066cc' // Professional blue
     : theme === '70s-swirl'
@@ -46,8 +40,6 @@ const MobileViewToggleComponent = ({ viewMode, onViewModeChange }: MobileViewTog
     ? '#2a2d2e'
     : theme === 'light'
     ? '#e8e8e8'
-    : theme === 'rainbow'
-    ? '#2d1a4d' // Lighter purple
     : theme === 'office-plain'
     ? '#d0d0d0' // Subtle gray
     : theme === '70s-swirl'

@@ -19,7 +19,6 @@ import {
   Moon,
   Sun,
   Sparkles,
-  Palette,
   Images,
   Briefcase,
   Flower2
@@ -233,8 +232,6 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
     ? '#252526' 
     : theme === 'light' 
     ? '#f5f5f5'
-    : theme === 'rainbow'
-    ? '#1a0a2d' // Dark blue-purple for rainbow
     : theme === 'office-plain'
     ? '#e8e8e8' // Neutral office gray
     : theme === '70s-swirl'
@@ -245,8 +242,6 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
     ? '#e8e8e8' // WCAG AA: 12.6:1 on #252526
     : theme === 'light'
     ? '#212121' // WCAG AA: 15.8:1 on #f5f5f5
-    : theme === 'rainbow'
-    ? '#00ffff' // Bright cyan for rainbow
     : theme === 'office-plain'
     ? '#2c2c2c' // Professional dark gray
     : theme === '70s-swirl'
@@ -256,8 +251,6 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
     ? '#2a2d2e'
     : theme === 'light'
     ? '#e8e8e8'
-    : theme === 'rainbow'
-    ? '#2d1a4d' // Lighter purple with more saturation
     : theme === 'office-plain'
     ? '#d0d0d0' // Subtle gray hover
     : theme === '70s-swirl'
@@ -267,8 +260,6 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
     ? '#2a2d2e'
     : theme === 'light'
     ? '#ffffff'
-    : theme === 'rainbow'
-    ? '#3d2a5d' // Even lighter saturated purple
     : theme === 'office-plain'
     ? '#ffffff' // Clean white select
     : theme === '70s-swirl'
@@ -412,7 +403,6 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
           <option value="dark">Dark</option>
           <option value="light">Light</option>
           <option value="unicorn-pastel">Unicorn Pastel</option>
-          <option value="rainbow">Rainbow</option>
           <option value="office-plain">Office Plain</option>
           <option value="70s-swirl">70s Swirl</option>
         </select>
@@ -420,7 +410,6 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
           {theme === 'dark' && <Moon size={14} />}
           {theme === 'light' && <Sun size={14} />}
           {theme === 'unicorn-pastel' && <Sparkles size={14} />}
-          {theme === 'rainbow' && <Palette size={14} />}
           {theme === 'office-plain' && <Briefcase size={14} />}
           {theme === '70s-swirl' && <Flower2 size={14} />}
         </div>

@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { Extension } from '@codemirror/state'
 import { oneDark } from '@codemirror/theme-one-dark'
-import { lightTheme, unicornPastelTheme, rainbowTheme, officePlainTheme, seventiesSwirlTheme } from '../themes/codemirrorThemes'
+import { lightTheme, unicornPastelTheme, officePlainTheme, seventiesSwirlTheme } from '../themes/codemirrorThemes'
 import type { Theme, ThemeContextType, PreviewTheme, ThemeProviderProps } from '../types/contexts'
 
 export type { Theme }
@@ -68,24 +68,6 @@ const themes: Record<Theme, PreviewTheme> = {
     h2Color: '#c026d3', // Pink-purple for h2
     h3Color: '#ec4899', // Pink for h3
     h4Color: '#f472b6', // Light pink for h4
-  },
-  rainbow: {
-    // Explosion of colors! Every element gets a different vibrant color
-    backgroundColor: '#0a0a1a', // Very dark blue-black for maximum color contrast
-    textColor: '#ff69b4', // Hot pink text
-    codeBackground: '#1a0a2d', // Dark blue-purple background for code blocks
-    codeTextColor: '#00ff00', // Bright lime green for code
-    borderColor: '#ff00ff', // Bright magenta borders
-    linkColor: '#00ffff', // Bright cyan links
-    blockquoteColor: '#ffff00', // Bright yellow for blockquotes
-    blockquoteBorder: '#ff1493', // Deep pink border
-    tableBorder: '#00ff00', // Lime green table borders
-    tableHeaderBg: '#ff00ff30', // Semi-transparent magenta header with more opacity
-    // Heading colors - vibrant rainbow colors
-    h1Color: '#ff0000', // Bright red for h1
-    h2Color: '#ff8800', // Bright orange for h2
-    h3Color: '#ffff00', // Bright yellow for h3
-    h4Color: '#00ff00', // Bright green for h4
   },
   'office-plain': {
     // Sober, professional office aesthetic
@@ -160,7 +142,6 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   const editorTheme: Extension = 
     theme === 'dark' ? oneDark :
     theme === 'light' ? lightTheme :
-    theme === 'rainbow' ? rainbowTheme :
     theme === 'office-plain' ? officePlainTheme :
     theme === '70s-swirl' ? seventiesSwirlTheme :
     unicornPastelTheme

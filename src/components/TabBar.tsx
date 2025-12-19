@@ -69,8 +69,6 @@ const TabBarComponent = () => {
     ? '#252526' 
     : theme === 'light' 
     ? '#f5f5f5'
-    : theme === 'rainbow'
-    ? '#1a0a2d' // Dark blue-purple
     : theme === 'office-plain'
     ? '#e8e8e8' // Neutral office gray
     : theme === '70s-swirl'
@@ -80,8 +78,6 @@ const TabBarComponent = () => {
     ? '#2d2d30'
     : theme === 'light'
     ? '#e8e8e8'
-    : theme === 'rainbow'
-    ? '#2d1a4d' // Lighter purple
     : theme === 'office-plain'
     ? '#d0d0d0' // Subtle gray
     : theme === '70s-swirl'
@@ -91,8 +87,6 @@ const TabBarComponent = () => {
     ? '#1e1e1e'
     : theme === 'light'
     ? '#ffffff'
-    : theme === 'rainbow'
-    ? '#0a0a1a' // Very dark for active tab
     : theme === 'office-plain'
     ? '#f8f8f8' // Clean white for active
     : theme === '70s-swirl'
@@ -102,8 +96,6 @@ const TabBarComponent = () => {
     ? '#e8e8e8'
     : theme === 'light'
     ? '#212121'
-    : theme === 'rainbow'
-    ? '#ff69b4' // Hot pink
     : theme === 'office-plain'
     ? '#2c2c2c' // Professional dark gray
     : theme === '70s-swirl'
