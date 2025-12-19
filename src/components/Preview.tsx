@@ -54,7 +54,7 @@ const MarkdownImage = ({ src, alt, ...props }: { src?: string; alt?: string; [ke
 }
 
 const PreviewComponent = ({ markdown, onScroll }: PreviewProps) => {
-  const { previewTheme, theme } = useTheme()
+  const { previewTheme } = useTheme()
   const previewRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -71,7 +71,7 @@ const PreviewComponent = ({ markdown, onScroll }: PreviewProps) => {
     }
   }, [onScroll])
 
-  const codeStyle = theme === 'dark' ? vscDarkPlus : oneLight
+  const codeStyle = previewTheme.codeHighlightTheme === 'dark' ? vscDarkPlus : oneLight
 
   // Ensure markdown is always a string
   const markdownString = typeof markdown === 'string' ? markdown : ''

@@ -28,7 +28,7 @@ import type { ToolbarProps } from '../types/components'
 import './Toolbar.css'
 
 const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange, onOpenImageManager }: ToolbarProps) => {
-  const { theme, setTheme, previewTheme } = useTheme()
+  const { theme, setTheme, previewTheme } = useTheme() // theme still needed for select dropdown
   const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
   
@@ -245,56 +245,17 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
     handleAction(() => editorRef!.redo())
   }, [handleAction, editorRef])
 
-  // Determine toolbar colors based on theme
-  const toolbarBg = theme === 'dark' 
-    ? '#252526' 
-    : theme === 'light' 
-    ? '#f5f5f5'
-    : theme === 'office-plain'
-    ? '#e8e8e8' // Neutral office gray
-    : theme === '70s-swirl'
-    ? '#e8d5c4' // Warm beige for 70s
-    : '#fef1f2'
-  const toolbarBorder = previewTheme.borderColor
-  const toolbarText = theme === 'dark' 
-    ? '#e8e8e8' // WCAG AA: 12.6:1 on #252526
-    : theme === 'light'
-    ? '#212121' // WCAG AA: 15.8:1 on #f5f5f5
-    : theme === 'office-plain'
-    ? '#2c2c2c' // Professional dark gray
-    : theme === '70s-swirl'
-    ? '#5d4037' // Rich brown for 70s
-    : '#2d3748' // WCAG AA: 12.1:1 on #fef1f2
-  const toolbarHoverBg = theme === 'dark'
-    ? '#2a2d2e'
-    : theme === 'light'
-    ? '#e8e8e8'
-    : theme === 'office-plain'
-    ? '#d0d0d0' // Subtle gray hover
-    : theme === '70s-swirl'
-    ? '#d5c4b4' // Warmer beige hover
-    : '#fce7f3'
-  const toolbarSelectBg = theme === 'dark'
-    ? '#2a2d2e'
-    : theme === 'light'
-    ? '#ffffff'
-    : theme === 'office-plain'
-    ? '#ffffff' // Clean white select
-    : theme === '70s-swirl'
-    ? '#f5e6d3' // Warm cream select
-    : '#ffffff'
-
   return (
     <div 
       className="toolbar"
       style={{
-        backgroundColor: toolbarBg,
-        borderBottomColor: toolbarBorder,
-        color: toolbarText,
-        '--toolbar-text': toolbarText,
-        '--toolbar-hover-bg': toolbarHoverBg,
-        '--toolbar-select-bg': toolbarSelectBg,
-        '--toolbar-border': toolbarBorder,
+        backgroundColor: previewTheme.toolbarBg,
+        borderBottomColor: previewTheme.borderColor,
+        color: previewTheme.toolbarText,
+        '--toolbar-text': previewTheme.toolbarText,
+        '--toolbar-hover-bg': previewTheme.toolbarHoverBg,
+        '--toolbar-select-bg': previewTheme.toolbarSelectBg,
+        '--toolbar-border': previewTheme.borderColor,
       } as React.CSSProperties}
     >
       <div className="toolbar-group">

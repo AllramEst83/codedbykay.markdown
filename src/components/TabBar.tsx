@@ -7,7 +7,7 @@ import './TabBar.css'
 
 const TabBarComponent = () => {
   const { tabs, activeTabId, addTab, closeTab, switchTab, updateTabTitle, saveState } = useTabs()
-  const { theme, previewTheme } = useTheme()
+  const { previewTheme } = useTheme()
   const { showModal } = useModal()
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
@@ -64,45 +64,6 @@ const TabBarComponent = () => {
     return null
   }
 
-  // Determine tab bar colors based on theme
-  const tabBarBg = theme === 'dark' 
-    ? '#252526' 
-    : theme === 'light' 
-    ? '#f5f5f5'
-    : theme === 'office-plain'
-    ? '#e8e8e8' // Neutral office gray
-    : theme === '70s-swirl'
-    ? '#e8d5c4' // Warm beige for 70s
-    : '#fef1f2'
-  const tabBg = theme === 'dark'
-    ? '#2d2d30'
-    : theme === 'light'
-    ? '#e8e8e8'
-    : theme === 'office-plain'
-    ? '#d0d0d0' // Subtle gray
-    : theme === '70s-swirl'
-    ? '#d5c4b4' // Warmer beige
-    : '#ffffff'
-  const tabActiveBg = theme === 'dark'
-    ? '#1e1e1e'
-    : theme === 'light'
-    ? '#ffffff'
-    : theme === 'office-plain'
-    ? '#f8f8f8' // Clean white for active
-    : theme === '70s-swirl'
-    ? '#f5e6d3' // Warm cream for active
-    : '#fff5f7'
-  const tabText = theme === 'dark'
-    ? '#e8e8e8'
-    : theme === 'light'
-    ? '#212121'
-    : theme === 'office-plain'
-    ? '#2c2c2c' // Professional dark gray
-    : theme === '70s-swirl'
-    ? '#5d4037' // Rich brown for 70s
-    : '#2d3748'
-  const tabBorder = previewTheme.borderColor
-
   const handleShowHelp = useCallback(async () => {
     await showModal({
       type: 'alert',
@@ -140,12 +101,12 @@ Cloud syncing may be available in the future.`,
     <div 
       className="tab-bar"
       style={{
-        backgroundColor: tabBarBg,
-        borderBottomColor: tabBorder,
-        '--tab-bg': tabBg,
-        '--tab-active-bg': tabActiveBg,
-        '--tab-text': tabText,
-        '--tab-border': tabBorder,
+        backgroundColor: previewTheme.tabBarBg,
+        borderBottomColor: previewTheme.borderColor,
+        '--tab-bg': previewTheme.tabBg,
+        '--tab-active-bg': previewTheme.tabActiveBg,
+        '--tab-text': previewTheme.tabText,
+        '--tab-border': previewTheme.borderColor,
       } as React.CSSProperties}
     >
       <div className="tabs-container">

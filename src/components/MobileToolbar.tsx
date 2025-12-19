@@ -21,7 +21,7 @@ import type { MobileToolbarProps } from '../types/components'
 import './MobileToolbar.css'
 
 const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompressingImageChange, onOpenImageManager }: MobileToolbarProps) => {
-  const { theme, previewTheme } = useTheme()
+  const { previewTheme } = useTheme()
   const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
   
@@ -254,45 +254,6 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
     handleAction(() => editorRef!.redo())
   }, [handleAction, editorRef])
 
-  // Determine toolbar colors based on theme
-  const toolbarBg = theme === 'dark' 
-    ? '#252526' 
-    : theme === 'light' 
-    ? '#f5f5f5'
-    : theme === 'office-plain'
-    ? '#e8e8e8' // Neutral office gray
-    : theme === '70s-swirl'
-    ? '#e8d5c4' // Warm beige for 70s
-    : '#fef1f2'
-  const toolbarBorder = previewTheme.borderColor
-  const toolbarText = theme === 'dark' 
-    ? '#e8e8e8'
-    : theme === 'light'
-    ? '#212121'
-    : theme === 'office-plain'
-    ? '#2c2c2c' // Professional dark gray
-    : theme === '70s-swirl'
-    ? '#5d4037' // Rich brown for 70s
-    : '#2d3748'
-  const toolbarHoverBg = theme === 'dark'
-    ? '#2a2d2e'
-    : theme === 'light'
-    ? '#e8e8e8'
-    : theme === 'office-plain'
-    ? '#d0d0d0' // Subtle gray hover
-    : theme === '70s-swirl'
-    ? '#d5c4b4' // Warmer beige hover
-    : '#fce7f3'
-  const toolbarSelectBg = theme === 'dark'
-    ? '#2a2d2e'
-    : theme === 'light'
-    ? '#ffffff'
-    : theme === 'office-plain'
-    ? '#ffffff' // Clean white select
-    : theme === '70s-swirl'
-    ? '#f5e6d3' // Warm cream select
-    : '#ffffff'
-
   if (!isVisible) return null
 
   // Calculate bottom position: when keyboard is visible, position toolbar above it
@@ -303,14 +264,13 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
     <div 
       className="mobile-toolbar"
       style={{
-        backgroundColor: toolbarBg,
-        borderTopColor: toolbarBorder,
-        color: toolbarText,
+        backgroundColor: previewTheme.mobileToolbarBg,
+        borderTopColor: previewTheme.borderColor,
+        color: previewTheme.mobileToolbarText,
         bottom: bottomPosition,
-        '--mobile-toolbar-text': toolbarText,
-        '--mobile-toolbar-hover-bg': toolbarHoverBg,
-        '--mobile-toolbar-select-bg': toolbarSelectBg,
-        '--mobile-toolbar-border': toolbarBorder,
+        '--mobile-toolbar-text': previewTheme.mobileToolbarText,
+        '--mobile-toolbar-hover-bg': previewTheme.mobileToolbarHoverBg,
+        '--mobile-toolbar-border': previewTheme.borderColor,
       } as React.CSSProperties}
     >
       <div className="mobile-toolbar-scroll">
