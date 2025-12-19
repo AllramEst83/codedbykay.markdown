@@ -1,11 +1,14 @@
-import { useState, useRef, useEffect, memo } from 'react'
+import { useState, useRef, useEffect, memo, useCallback } from 'react'
 import { useTabs } from '../contexts/TabsContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { useModal } from '../contexts/ModalContext'
+import { HelpCircle } from 'lucide-react'
 import './TabBar.css'
 
 const TabBarComponent = () => {
   const { tabs, activeTabId, addTab, closeTab, switchTab, updateTabTitle, saveState } = useTabs()
   const { theme, previewTheme } = useTheme()
+  const { showModal } = useModal()
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -108,6 +111,39 @@ const TabBarComponent = () => {
     : '#2d3748'
   const tabBorder = previewTheme.borderColor
 
+  const handleShowHelp = useCallback(async () => {
+    await showModal({
+      type: 'alert',
+      title: 'How to Use This App',
+      message: `Welcome to the Markdown Editor!
+
+BASIC USAGE:
+• Create new tabs by clicking the + button
+• Double-click a tab title to rename it
+• Use the toolbar buttons to format your text
+• Your markdown is automatically rendered in the preview pane
+
+KEYBOARD SHORTCUTS:
+• Use toolbar buttons for quick formatting
+• Drag the divider between editor and preview to resize
+
+IMAGES:
+• Click the image button to insert images
+• Images are automatically compressed and stored locally
+• Use the Images button to manage your stored images
+
+SAVING:
+• Click the Save button to download your markdown file
+• Use the Open button to load markdown files
+
+IMPORTANT - LOCAL STORAGE:
+This app stores all your notes and images locally in your browser on this device only. Your data is not synced to any cloud service. If you clear your browser data or use a different device, your notes will not be available there.
+
+Cloud syncing may be available in the future.`,
+      confirmText: 'Got it'
+    })
+  }, [showModal])
+
   return (
     <div 
       className="tab-bar"
@@ -159,6 +195,14 @@ const TabBarComponent = () => {
           </div>
         ))}
       </div>
+      <button 
+        className="tab-help" 
+        onClick={handleShowHelp} 
+        aria-label="Show help and instructions" 
+        title="Help & Instructions"
+      >
+        <HelpCircle size={16} />
+      </button>
       <button 
         className="tab-add" 
         onClick={() => addTab()} 

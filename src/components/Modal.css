@@ -63,6 +63,28 @@
   font-size: 14px;
   color: var(--modal-text-secondary, #cccccc);
   line-height: 1.5;
+  white-space: pre-line;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+
+.modal-message::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-message::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-message::-webkit-scrollbar-thumb {
+  background: var(--modal-border, #404040);
+  border-radius: 3px;
+}
+
+.modal-message::-webkit-scrollbar-thumb:hover {
+  background: var(--modal-border-hover, #555555);
 }
 
 .modal-input {
@@ -81,7 +103,7 @@
 
 .modal-input:focus {
   border-color: var(--modal-input-focus-border, #007acc);
-  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+  box-shadow: 0 0 0 2px var(--modal-input-focus-ring, rgba(0, 122, 204, 0.2));
 }
 
 .modal-input::placeholder {
@@ -142,29 +164,20 @@
 }
 
 .modal-button-confirm:focus {
-  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
+  box-shadow: 0 0 0 2px var(--modal-focus-ring, rgba(0, 122, 204, 0.3));
 }
 
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .modal-backdrop {
     padding: 16px;
-    align-items: flex-end;
+    align-items: center;
   }
 
   .modal-container {
     max-width: 100%;
-    border-radius: 16px 16px 0 0;
-    animation: slideUpMobile 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  @keyframes slideUpMobile {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: translateY(0);
-    }
+    border-radius: 16px;
+    animation: slideUp 0.2s ease-out;
   }
 
   .modal-form {
@@ -205,12 +218,14 @@
   --modal-input-bg: #f5f5f5;
   --modal-input-border: #d0d0d0;
   --modal-input-focus-border: #0056b3;
+  --modal-input-focus-ring: rgba(0, 86, 179, 0.2);
   --modal-text-placeholder: #888888;
   --modal-button-hover-bg: #f5f5f5;
   --modal-border-hover: #b0b0b0;
   --modal-button-confirm-bg: #0056b3;
   --modal-button-confirm-hover-bg: #004494;
   --modal-button-confirm-text: #ffffff;
+  --modal-focus-ring: rgba(0, 86, 179, 0.3);
 }
 
 .modal-container[data-theme="dark"] {
@@ -221,12 +236,14 @@
   --modal-input-bg: #1e1e1e;
   --modal-input-border: #404040;
   --modal-input-focus-border: #007acc;
+  --modal-input-focus-ring: rgba(0, 122, 204, 0.2);
   --modal-text-placeholder: #888888;
   --modal-button-hover-bg: #2a2d2e;
   --modal-border-hover: #555555;
   --modal-button-confirm-bg: #007acc;
   --modal-button-confirm-hover-bg: #005a9e;
   --modal-button-confirm-text: #ffffff;
+  --modal-focus-ring: rgba(0, 122, 204, 0.3);
 }
 
 .modal-container[data-theme="unicorn-pastel"] {
@@ -237,12 +254,14 @@
   --modal-input-bg: #fef1f2;
   --modal-input-border: #fbcfe8;
   --modal-input-focus-border: #c026d3;
+  --modal-input-focus-ring: rgba(192, 38, 211, 0.2);
   --modal-text-placeholder: #a78bfa;
   --modal-button-hover-bg: #fce7f3;
   --modal-border-hover: #f9a8d4;
   --modal-button-confirm-bg: #c026d3;
   --modal-button-confirm-hover-bg: #a21caf;
   --modal-button-confirm-text: #ffffff;
+  --modal-focus-ring: rgba(192, 38, 211, 0.3);
 }
 
 .modal-container[data-theme="rainbow"] {
@@ -253,11 +272,49 @@
   --modal-input-bg: #0a0a1a;
   --modal-input-border: #ff00ff;
   --modal-input-focus-border: #00ffff;
+  --modal-input-focus-ring: rgba(0, 255, 255, 0.3);
   --modal-text-placeholder: #ff69b4;
   --modal-button-hover-bg: #2d1a4d;
   --modal-border-hover: #ff1493;
   --modal-button-confirm-bg: #00ffff;
   --modal-button-confirm-hover-bg: #00cccc;
   --modal-button-confirm-text: #000000;
+  --modal-focus-ring: rgba(0, 255, 255, 0.4);
+}
+
+.modal-container[data-theme="office-plain"] {
+  --modal-bg: #f8f8f8;
+  --modal-text: #2c2c2c;
+  --modal-text-secondary: #4a4a4a;
+  --modal-border: #c0c0c0;
+  --modal-input-bg: #e8e8e8;
+  --modal-input-border: #c0c0c0;
+  --modal-input-focus-border: #0066cc;
+  --modal-input-focus-ring: rgba(0, 102, 204, 0.2);
+  --modal-text-placeholder: #888888;
+  --modal-button-hover-bg: #e0e0e0;
+  --modal-border-hover: #a0a0a0;
+  --modal-button-confirm-bg: #0066cc;
+  --modal-button-confirm-hover-bg: #0052a3;
+  --modal-button-confirm-text: #ffffff;
+  --modal-focus-ring: rgba(0, 102, 204, 0.3);
+}
+
+.modal-container[data-theme="70s-swirl"] {
+  --modal-bg: #f5e6d3;
+  --modal-text: #5d4037;
+  --modal-text-secondary: #6d4c41;
+  --modal-border: #8b6f47;
+  --modal-input-bg: #e8d5c4;
+  --modal-input-border: #8b6f47;
+  --modal-input-focus-border: #d84315;
+  --modal-input-focus-ring: rgba(216, 67, 21, 0.2);
+  --modal-text-placeholder: #a1887f;
+  --modal-button-hover-bg: #d5c4b4;
+  --modal-border-hover: #a1887f;
+  --modal-button-confirm-bg: #d84315;
+  --modal-button-confirm-hover-bg: #bf360c;
+  --modal-button-confirm-text: #ffffff;
+  --modal-focus-ring: rgba(216, 67, 21, 0.3);
 }
 
