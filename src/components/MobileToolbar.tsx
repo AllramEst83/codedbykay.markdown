@@ -1,5 +1,6 @@
 import { useCallback, useRef, memo } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
+import { useModal } from '../contexts/ModalContext'
 import { storeImage } from '../utils/imageStorage'
 import {
   Undo2,
@@ -34,6 +35,7 @@ interface MobileToolbarProps {
 
 const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: MobileToolbarProps) => {
   const { theme, previewTheme } = useTheme()
+  const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
   
   const handleAction = useCallback((action: () => void) => {
@@ -121,11 +123,27 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: Mobile
     })
   }, [handleAction, editorRef])
 
-  const insertLink = useCallback(() => {
+  const insertLink = useCallback(async () => {
     const selectedText = editorRef!.getSelectedText()
-    const url = prompt('Enter URL:', selectedText || '')
+    const url = await showModal({
+      type: 'prompt',
+      title: 'Insert Link',
+      message: 'Enter the URL:',
+      defaultValue: selectedText || '',
+      placeholder: 'https://example.com',
+      confirmText: 'Next',
+      cancelText: 'Cancel'
+    })
     if (url) {
-      const text = prompt('Enter link text:', selectedText || url || '')
+      const text = await showModal({
+        type: 'prompt',
+        title: 'Insert Link',
+        message: 'Enter the link text:',
+        defaultValue: selectedText || url || '',
+        placeholder: 'Link text',
+        confirmText: 'Insert',
+        cancelText: 'Cancel'
+      })
       if (text) {
         handleAction(() => {
           if (selectedText) {
@@ -136,7 +154,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: Mobile
         })
       }
     }
-  }, [handleAction, editorRef])
+  }, [handleAction, editorRef, showModal])
 
   const insertImage = useCallback(() => {
     imageInputRef.current?.click()
@@ -149,22 +167,37 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: Mobile
     try {
       const selectedText = editorRef!.getSelectedText()
       const dataUrl = await storeImage(file)
-      const alt = prompt('Enter alt text for the image:', selectedText || file.name.replace(/\.[^/.]+$/, ''))
-      
-      handleAction(() => {
-        if (selectedText) {
-          editorRef!.replaceSelection(`![${alt || 'image'}](${dataUrl})`)
-        } else {
-          editorRef!.insertText(`![${alt || 'image'}](${dataUrl})`)
-        }
+      const alt = await showModal({
+        type: 'prompt',
+        title: 'Insert Image',
+        message: 'Enter alt text for the image:',
+        defaultValue: selectedText || file.name.replace(/\.[^/.]+$/, ''),
+        placeholder: 'Image description',
+        confirmText: 'Insert',
+        cancelText: 'Cancel'
       })
+      
+      if (alt !== null) {
+        handleAction(() => {
+          if (selectedText) {
+            editorRef!.replaceSelection(`![${alt || 'image'}](${dataUrl})`)
+          } else {
+            editorRef!.insertText(`![${alt || 'image'}](${dataUrl})`)
+          }
+        })
+      }
     } catch (error) {
       console.error('Failed to insert image:', error)
-      alert(error instanceof Error ? error.message : 'Failed to insert image')
+      await showModal({
+        type: 'alert',
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to insert image',
+        confirmText: 'OK'
+      })
     } finally {
       event.target.value = ''
     }
-  }, [handleAction, editorRef])
+  }, [handleAction, editorRef, showModal])
 
   const handleUndo = useCallback(() => {
     handleAction(() => editorRef!.undo())

@@ -1,5 +1,6 @@
 import { useCallback, useRef, memo } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
+import { useModal } from '../contexts/ModalContext'
 import { storeImage } from '../utils/imageStorage'
 import {
   Undo2,
@@ -40,6 +41,7 @@ interface ToolbarProps {
 
 const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
   const { theme, setTheme, previewTheme } = useTheme()
+  const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
   
   const handleAction = useCallback((action: () => void) => {
@@ -132,11 +134,27 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
     })
   }, [handleAction, editorRef])
 
-  const insertLink = useCallback(() => {
+  const insertLink = useCallback(async () => {
     const selectedText = editorRef!.getSelectedText()
-    const url = prompt('Enter URL:', selectedText || '')
+    const url = await showModal({
+      type: 'prompt',
+      title: 'Insert Link',
+      message: 'Enter the URL:',
+      defaultValue: selectedText || '',
+      placeholder: 'https://example.com',
+      confirmText: 'Next',
+      cancelText: 'Cancel'
+    })
     if (url) {
-      const text = prompt('Enter link text:', selectedText || url || '')
+      const text = await showModal({
+        type: 'prompt',
+        title: 'Insert Link',
+        message: 'Enter the link text:',
+        defaultValue: selectedText || url || '',
+        placeholder: 'Link text',
+        confirmText: 'Insert',
+        cancelText: 'Cancel'
+      })
       if (text) {
         handleAction(() => {
           if (selectedText) {
@@ -147,7 +165,7 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
         })
       }
     }
-  }, [handleAction, editorRef])
+  }, [handleAction, editorRef, showModal])
 
   const insertImage = useCallback(() => {
     // Trigger file input
@@ -159,31 +177,45 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
     if (!file) return
 
     try {
-      // Show loading indicator (could be improved with a toast/notification)
       const selectedText = editorRef!.getSelectedText()
       
       // Store image and get data URL
       const dataUrl = await storeImage(file)
       
       // Prompt for alt text
-      const alt = prompt('Enter alt text for the image:', selectedText || file.name.replace(/\.[^/.]+$/, ''))
+      const alt = await showModal({
+        type: 'prompt',
+        title: 'Insert Image',
+        message: 'Enter alt text for the image:',
+        defaultValue: selectedText || file.name.replace(/\.[^/.]+$/, ''),
+        placeholder: 'Image description',
+        confirmText: 'Insert',
+        cancelText: 'Cancel'
+      })
       
       // Insert markdown with stored image
-      handleAction(() => {
-        if (selectedText) {
-          editorRef!.replaceSelection(`![${alt || 'image'}](${dataUrl})`)
-        } else {
-          editorRef!.insertText(`![${alt || 'image'}](${dataUrl})`)
-        }
-      })
+      if (alt !== null) {
+        handleAction(() => {
+          if (selectedText) {
+            editorRef!.replaceSelection(`![${alt || 'image'}](${dataUrl})`)
+          } else {
+            editorRef!.insertText(`![${alt || 'image'}](${dataUrl})`)
+          }
+        })
+      }
     } catch (error) {
       console.error('Failed to insert image:', error)
-      alert(error instanceof Error ? error.message : 'Failed to insert image')
+      await showModal({
+        type: 'alert',
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to insert image',
+        confirmText: 'OK'
+      })
     } finally {
       // Reset input so the same file can be selected again
       event.target.value = ''
     }
-  }, [handleAction, editorRef])
+  }, [handleAction, editorRef, showModal])
 
   const handleUndo = useCallback(() => {
     handleAction(() => editorRef!.undo())
