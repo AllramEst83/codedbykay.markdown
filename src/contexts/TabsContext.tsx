@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react'
 import { TabData, localStorageService } from '../services/localStorageService'
 
 interface TabsContextType {
@@ -74,6 +74,9 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
 
   const [saveState, setSaveState] = useState<Map<string, 'saving' | 'saved' | 'idle'>>(new Map())
   
+  // Ref to store the debounce timeout for auto-saving
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
   // Track last saved state for each tab to detect dirty tabs
   // Only initialize for tabs loaded from localStorage, not newly created ones
   const [lastSavedState, setLastSavedState] = useState<Map<string, { content: string; title: string }>>(() => {
@@ -114,74 +117,89 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     })
   }, []) // Only run once on mount
 
-  // Auto-save only dirty tabs when tabs change
+  // Auto-save only dirty tabs when tabs change (debounced)
   useEffect(() => {
     if (tabs.length === 0) return
 
-    // Find dirty tabs by comparing with last saved state
-    const dirtyTabIds: string[] = []
-    const dirtyTabs: TabData[] = []
-    
-    tabs.forEach((tab) => {
-      const lastSaved = lastSavedState.get(tab.id)
-      if (!lastSaved) {
-        // New tab that hasn't been saved yet - always mark as dirty to ensure it gets saved
-        // This handles the case where a new tab is created but hasn't been saved yet
-        dirtyTabIds.push(tab.id)
-        dirtyTabs.push(tab)
-      } else {
-        // Compare with last saved state
-        if (lastSaved.content !== tab.content || lastSaved.title !== tab.title) {
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    // Set a new timeout to save after user stops typing (800ms delay)
+    saveTimeoutRef.current = setTimeout(() => {
+      // Find dirty tabs by comparing with last saved state
+      const dirtyTabIds: string[] = []
+      const dirtyTabs: TabData[] = []
+      
+      tabs.forEach((tab) => {
+        const lastSaved = lastSavedState.get(tab.id)
+        if (!lastSaved) {
+          // New tab that hasn't been saved yet - always mark as dirty to ensure it gets saved
+          // This handles the case where a new tab is created but hasn't been saved yet
           dirtyTabIds.push(tab.id)
           dirtyTabs.push(tab)
+        } else {
+          // Compare with last saved state
+          if (lastSaved.content !== tab.content || lastSaved.title !== tab.title) {
+            dirtyTabIds.push(tab.id)
+            dirtyTabs.push(tab)
+          }
         }
-      }
-    })
-
-    // Only save and show saving state for dirty tabs
-    if (dirtyTabIds.length > 0) {
-      // Set dirty tabs to 'saving' state
-      setSaveState((prev) => {
-        const newState = new Map(prev)
-        dirtyTabIds.forEach((tabId) => {
-          newState.set(tabId, 'saving')
-        })
-        return newState
       })
 
-      // Save only dirty tabs (not entire state) with throttling
-      localStorageService.saveDirtyTabs(
-        dirtyTabs, // Only dirty tabs
-        tabs, // All tabs for metadata
-        (tabId) => {
-          // Update last saved state
-          const tab = tabs.find((t) => t.id === tabId)
-          if (tab) {
-            setLastSavedState((prev) => {
-              const newState = new Map(prev)
-              newState.set(tabId, { content: tab.content, title: tab.title })
-              return newState
-            })
-          }
-
-          setSaveState((prev) => {
-            const newState = new Map(prev)
-            newState.set(tabId, 'saved')
-            return newState
+      // Only save and show saving state for dirty tabs
+      if (dirtyTabIds.length > 0) {
+        // Set dirty tabs to 'saving' state
+        setSaveState((prev) => {
+          const newState = new Map(prev)
+          dirtyTabIds.forEach((tabId) => {
+            newState.set(tabId, 'saving')
           })
+          return newState
+        })
 
-          // Reset to idle after 2 seconds
-          setTimeout(() => {
+        // Save only dirty tabs (not entire state) with throttling
+        localStorageService.saveDirtyTabs(
+          dirtyTabs, // Only dirty tabs
+          tabs, // All tabs for metadata
+          (tabId) => {
+            // Update last saved state
+            const tab = tabs.find((t) => t.id === tabId)
+            if (tab) {
+              setLastSavedState((prev) => {
+                const newState = new Map(prev)
+                newState.set(tabId, { content: tab.content, title: tab.title })
+                return newState
+              })
+            }
+
             setSaveState((prev) => {
               const newState = new Map(prev)
-              if (newState.get(tabId) === 'saved') {
-                newState.set(tabId, 'idle')
-              }
+              newState.set(tabId, 'saved')
               return newState
             })
-          }, 2000)
-        }
-      )
+
+            // Reset to idle after 2 seconds
+            setTimeout(() => {
+              setSaveState((prev) => {
+                const newState = new Map(prev)
+                if (newState.get(tabId) === 'saved') {
+                  newState.set(tabId, 'idle')
+                }
+                return newState
+              })
+            }, 2000)
+          }
+        )
+      }
+    }, 800) // 800ms delay - save after user stops typing
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
     }
   }, [tabs, lastSavedState])
 
@@ -349,6 +367,9 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
   useEffect(() => {
     return () => {
       localStorageService.clearTimeouts()
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
     }
   }, [])
 
