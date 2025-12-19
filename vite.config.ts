@@ -26,8 +26,10 @@ export default defineConfig({
           ],
           // Syntax highlighter (large library)
           'syntax-highlighter': ['react-syntax-highlighter'],
-          // Icons library
-          'icons': ['lucide-react']
+          // Icons libraryx
+          'icons': ['lucide-react'],
+          // Image compression library
+          'browser-image-compression': ['browser-image-compression']
         }
       }
     },

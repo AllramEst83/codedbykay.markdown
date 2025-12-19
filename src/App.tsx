@@ -6,10 +6,12 @@ import TabBar from './components/TabBar'
 import MobileToolbar from './components/MobileToolbar'
 import MobileViewToggle from './components/MobileViewToggle'
 import Spinner from './components/Spinner'
+import ImageManager from './components/ImageManager'
 import { useTheme } from './contexts/ThemeContext'
 import { useTabs } from './contexts/TabsContext'
 import { useDebounce } from './hooks/useDebounce'
 import { useMobileKeyboard } from './hooks/useMobileKeyboard'
+import { migrateFromLocalStorage } from './utils/imageStorage'
 import './App.css'
 
 type MobileViewMode = 'editor' | 'preview'
@@ -26,6 +28,8 @@ function App() {
   const { isMobile, isKeyboardVisible, keyboardOffset } = useMobileKeyboard()
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
   const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [isCompressingImage, setIsCompressingImage] = useState(false)
+  const [isImageManagerOpen, setIsImageManagerOpen] = useState(false)
 
   const activeTab = useMemo(() => {
     if (!activeTabId) return null
@@ -166,8 +170,11 @@ function App() {
     }
   }, [isDragging, handleMouseMove, handleMouseUp])
 
-  // Handle initial loading
+  // Handle initial loading and migrate images from localStorage to IndexedDB
   useEffect(() => {
+    // Migrate images from localStorage to IndexedDB (one-time migration)
+    migrateFromLocalStorage().catch(console.error)
+    
     // Simulate initial load time (you can remove this if not needed)
     const timer = setTimeout(() => {
       setIsInitialLoading(false)
@@ -215,6 +222,8 @@ function App() {
           editorRef={editorRef.current}
           onSave={handleSave}
           onOpen={handleOpen}
+          onCompressingImageChange={setIsCompressingImage}
+          onOpenImageManager={() => setIsImageManagerOpen(true)}
         />
       )}
       <div 
@@ -284,8 +293,23 @@ function App() {
           editorRef={editorRef.current}
           isVisible={isKeyboardVisible && mobileViewMode === 'editor'}
           keyboardOffset={keyboardOffset}
+          onCompressingImageChange={setIsCompressingImage}
+          onOpenImageManager={() => setIsImageManagerOpen(true)}
         />
       )}
+      
+      {/* Loading overlay for image compression - rendered at app level for proper centering */}
+      {isCompressingImage && (
+        <div className="spinner-overlay">
+          <Spinner size={48} message="Compressing image..." />
+        </div>
+      )}
+      
+      {/* Image Manager Modal */}
+      <ImageManager 
+        isOpen={isImageManagerOpen}
+        onClose={() => setIsImageManagerOpen(false)}
+      />
     </div>
   )
 }

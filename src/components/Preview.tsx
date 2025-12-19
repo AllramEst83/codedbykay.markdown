@@ -1,4 +1,4 @@
-import { useEffect, useRef, memo, useMemo } from 'react'
+import { useEffect, useRef, memo, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
@@ -6,11 +6,55 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useTheme } from '../contexts/ThemeContext'
+import { getImageUrlForRendering } from '../utils/imageStorage'
 import './Preview.css'
 
 interface PreviewProps {
   markdown: string
   onScroll?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void
+}
+
+// Component to handle image URL conversion
+const MarkdownImage = ({ src, alt, ...props }: { src?: string; alt?: string; [key: string]: any }) => {
+  const [imageSrc, setImageSrc] = useState<string>(src || '')
+  const [imageUrlCache] = useState<Map<string, string>>(new Map())
+
+  useEffect(() => {
+    if (src && src.startsWith('md-editor-image://')) {
+      // Check cache first
+      const cached = imageUrlCache.get(src)
+      if (cached) {
+        setImageSrc(cached)
+        return
+      }
+      
+      // Convert custom URL to object URL
+      getImageUrlForRendering(src).then((url) => {
+        if (url) {
+          imageUrlCache.set(src, url)
+          setImageSrc(url)
+        }
+      }).catch(() => {
+        // If image not found, keep original URL (will show broken image)
+        setImageSrc(src)
+      })
+    } else {
+      // For blob URLs, data URLs, or regular URLs, use as-is
+      setImageSrc(src || '')
+    }
+  }, [src, imageUrlCache])
+  
+  return (
+    <img 
+      src={imageSrc} 
+      alt={alt || ''} 
+      {...props}
+      style={{
+        maxWidth: '100%',
+        height: 'auto',
+      }}
+    />
+  )
 }
 
 const PreviewComponent = ({ markdown, onScroll }: PreviewProps) => {
@@ -74,20 +118,7 @@ const PreviewComponent = ({ markdown, onScroll }: PreviewProps) => {
         </code>
       )
     },
-    img({ src, alt, ...props }: any) {
-      // Allow data URLs and regular URLs
-      return (
-        <img 
-          src={src} 
-          alt={alt || ''} 
-          {...props}
-          style={{
-            maxWidth: '100%',
-            height: 'auto',
-          }}
-        />
-      )
-    }
+    img: MarkdownImage
   }), [codeStyle, previewTheme.codeBackground, previewTheme.codeTextColor])
 
   // Memoize urlTransform to avoid recreating on every render

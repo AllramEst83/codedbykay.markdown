@@ -1,8 +1,7 @@
-import { useCallback, useRef, memo, useState } from 'react'
+import { useCallback, useRef, memo } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
 import { storeImage } from '../utils/imageStorage'
-import Spinner from './Spinner'
 import {
   Undo2,
   Redo2,
@@ -20,7 +19,8 @@ import {
   Moon,
   Sun,
   Sparkles,
-  Palette
+  Palette,
+  Images
 } from 'lucide-react'
 import './Toolbar.css'
 
@@ -38,13 +38,14 @@ interface ToolbarProps {
   editorRef: EditorRef | null
   onSave: () => void
   onOpen: () => void
+  onCompressingImageChange: (isCompressing: boolean) => void
+  onOpenImageManager: () => void
 }
 
-const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
+const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange, onOpenImageManager }: ToolbarProps) => {
   const { theme, setTheme, previewTheme } = useTheme()
   const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
-  const [isCompressingImage, setIsCompressingImage] = useState(false)
   
   const handleAction = useCallback((action: () => void) => {
     if (editorRef) {
@@ -192,14 +193,14 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
       return
     }
 
-    setIsCompressingImage(true)
+    onCompressingImageChange(true)
     try {
       const selectedText = editorRef.getSelectedText()
       
       // Store image and get data URL (this compresses the image)
       const dataUrl = await storeImage(file)
       
-      setIsCompressingImage(false)
+      onCompressingImageChange(false)
       
       // Prompt for alt text
       const alt = await showModal({
@@ -223,7 +224,7 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
         })
       }
     } catch (error) {
-      setIsCompressingImage(false)
+      onCompressingImageChange(false)
       console.error('Failed to insert image:', error)
       await showModal({
         type: 'alert',
@@ -425,6 +426,14 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
       <div className="toolbar-group">
         <button 
           className="toolbar-button" 
+          onClick={onOpenImageManager}
+          title="Manage Images"
+          aria-label="Manage Images"
+        >
+          <Images size={16} />
+        </button>
+        <button 
+          className="toolbar-button" 
           onClick={onOpen}
           title="Open File"
           aria-label="Open File"
@@ -450,13 +459,6 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
         style={{ display: 'none' }}
         aria-hidden="true"
       />
-      
-      {/* Loading overlay for image compression */}
-      {isCompressingImage && (
-        <div className="spinner-overlay">
-          <Spinner size={48} message="Compressing image..." />
-        </div>
-      )}
     </div>
   )
 }
@@ -466,7 +468,8 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
 const Toolbar = memo(ToolbarComponent, (prevProps, nextProps) => {
   return prevProps.editorRef === nextProps.editorRef &&
          prevProps.onSave === nextProps.onSave &&
-         prevProps.onOpen === nextProps.onOpen
+         prevProps.onOpen === nextProps.onOpen &&
+         prevProps.onOpenImageManager === nextProps.onOpenImageManager
 })
 
 Toolbar.displayName = 'Toolbar'

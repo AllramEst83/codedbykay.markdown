@@ -1,8 +1,7 @@
-import { useCallback, useRef, memo, useState } from 'react'
+import { useCallback, useRef, memo } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
 import { storeImage } from '../utils/imageStorage'
-import Spinner from './Spinner'
 import {
   Undo2,
   Redo2,
@@ -15,6 +14,7 @@ import {
   Code,
   Link as LinkIcon,
   Image as ImageIcon,
+  Images,
 } from 'lucide-react'
 import './MobileToolbar.css'
 
@@ -32,13 +32,14 @@ interface MobileToolbarProps {
   editorRef: EditorRef | null
   isVisible: boolean
   keyboardOffset: number
+  onCompressingImageChange: (isCompressing: boolean) => void
+  onOpenImageManager: () => void
 }
 
-const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: MobileToolbarProps) => {
+const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompressingImageChange, onOpenImageManager }: MobileToolbarProps) => {
   const { theme, previewTheme } = useTheme()
   const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
-  const [isCompressingImage, setIsCompressingImage] = useState(false)
   
   const handleAction = useCallback((action: () => void) => {
     if (editorRef) {
@@ -184,7 +185,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: Mobile
     // Reset input immediately to allow selecting the same file again
     event.target.value = ''
 
-    setIsCompressingImage(true)
+    onCompressingImageChange(true)
     try {
       // Use requestAnimationFrame to ensure file picker is closed before processing
       // This is especially important on mobile devices
@@ -198,7 +199,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: Mobile
       
       const dataUrl = await storeImage(file)
       
-      setIsCompressingImage(false)
+      onCompressingImageChange(false)
       
       // Ensure UI is ready before showing modal
       await new Promise(resolve => {
@@ -227,7 +228,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: Mobile
         })
       }
     } catch (error) {
-      setIsCompressingImage(false)
+      onCompressingImageChange(false)
       console.error('Failed to insert image:', error)
       // Ensure UI is ready before showing error modal
       await new Promise(resolve => {
@@ -397,13 +398,21 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: Mobile
           >
             <LinkIcon size={18} />
           </button>
-          <button 
-            className="mobile-toolbar-button" 
+          <button
+            className="mobile-toolbar-button"
             onClick={insertImage}
             title="Insert Image"
             aria-label="Insert Image"
           >
             <ImageIcon size={18} />
+          </button>
+          <button
+            className="mobile-toolbar-button"
+            onClick={onOpenImageManager}
+            title="Manage Images"
+            aria-label="Manage Images"
+          >
+            <Images size={18} />
           </button>
         </div>
       </div>
@@ -417,13 +426,6 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: Mobile
         style={{ display: 'none' }}
         aria-hidden="true"
       />
-      
-      {/* Loading overlay for image compression */}
-      {isCompressingImage && (
-        <div className="spinner-overlay">
-          <Spinner size={48} message="Compressing image..." />
-        </div>
-      )}
     </div>
   )
 }

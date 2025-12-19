@@ -9,7 +9,7 @@ export interface ModalOptions {
   placeholder?: string
   confirmText?: string
   cancelText?: string
-  type?: 'prompt' | 'alert'
+  type?: 'prompt' | 'alert' | 'confirm'
 }
 
 interface ModalContextType {
@@ -99,6 +99,7 @@ const ModalComponent = ({ options, onConfirm, onCancel }: ModalComponentProps) =
   const { theme } = useTheme()
   const [inputValue, setInputValue] = useState(options.defaultValue || '')
   const isPrompt = options.type === 'prompt' || (!options.type && options.defaultValue !== undefined)
+  const isConfirm = options.type === 'confirm'
 
   // Handle ESC key to close modal
   useEffect(() => {
@@ -117,6 +118,9 @@ const ModalComponent = ({ options, onConfirm, onCancel }: ModalComponentProps) =
     e.preventDefault()
     if (isPrompt) {
       onConfirm(inputValue)
+    } else if (isConfirm) {
+      // For confirm type, return a non-null value to indicate confirmation
+      onConfirm('confirmed')
     } else {
       onConfirm(null)
     }
@@ -149,7 +153,7 @@ const ModalComponent = ({ options, onConfirm, onCancel }: ModalComponentProps) =
             />
           )}
           <div className="modal-actions">
-            {isPrompt && (
+            {(isPrompt || isConfirm) && (
               <button
                 type="button"
                 className="modal-button modal-button-cancel"
@@ -162,7 +166,7 @@ const ModalComponent = ({ options, onConfirm, onCancel }: ModalComponentProps) =
               type="submit"
               className="modal-button modal-button-confirm"
             >
-              {options.confirmText || (isPrompt ? 'OK' : 'OK')}
+              {options.confirmText || (isPrompt ? 'OK' : isConfirm ? 'Confirm' : 'OK')}
             </button>
           </div>
         </form>
