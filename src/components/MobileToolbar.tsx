@@ -29,9 +29,10 @@ interface EditorRef {
 interface MobileToolbarProps {
   editorRef: EditorRef | null
   isVisible: boolean
+  keyboardOffset: number
 }
 
-const MobileToolbarComponent = ({ editorRef, isVisible }: MobileToolbarProps) => {
+const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: MobileToolbarProps) => {
   const { theme, previewTheme } = useTheme()
   const imageInputRef = useRef<HTMLInputElement>(null)
   
@@ -199,6 +200,10 @@ const MobileToolbarComponent = ({ editorRef, isVisible }: MobileToolbarProps) =>
 
   if (!isVisible) return null
 
+  // Calculate bottom position: when keyboard is visible, position toolbar above it
+  // keyboardOffset represents the height of the keyboard
+  const bottomPosition = keyboardOffset > 0 ? `${keyboardOffset}px` : '0px'
+
   return (
     <div 
       className="mobile-toolbar"
@@ -206,6 +211,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible }: MobileToolbarProps) =>
         backgroundColor: toolbarBg,
         borderTopColor: toolbarBorder,
         color: toolbarText,
+        bottom: bottomPosition,
         '--mobile-toolbar-text': toolbarText,
         '--mobile-toolbar-hover-bg': toolbarHoverBg,
         '--mobile-toolbar-border': toolbarBorder,
@@ -340,7 +346,8 @@ const MobileToolbarComponent = ({ editorRef, isVisible }: MobileToolbarProps) =>
 // Memoize MobileToolbar to prevent unnecessary re-renders
 const MobileToolbar = memo(MobileToolbarComponent, (prevProps, nextProps) => {
   return prevProps.editorRef === nextProps.editorRef &&
-         prevProps.isVisible === nextProps.isVisible
+         prevProps.isVisible === nextProps.isVisible &&
+         Math.abs(prevProps.keyboardOffset - nextProps.keyboardOffset) < 1
 })
 
 MobileToolbar.displayName = 'MobileToolbar'

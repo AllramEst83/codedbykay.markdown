@@ -22,7 +22,7 @@ function App() {
   const [editorPaneWidth, setEditorPaneWidth] = useState(50) // Percentage
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
-  const { isMobile, isKeyboardVisible } = useMobileKeyboard()
+  const { isMobile, isKeyboardVisible, keyboardOffset } = useMobileKeyboard()
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
 
   const activeTab = useMemo(() => {
@@ -254,6 +254,7 @@ function App() {
         <MobileToolbar 
           editorRef={editorRef.current}
           isVisible={isKeyboardVisible && mobileViewMode === 'editor'}
+          keyboardOffset={keyboardOffset}
         />
       )}
     </div>
