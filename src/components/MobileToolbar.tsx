@@ -1,5 +1,5 @@
 import { useCallback, useRef, memo } from 'react'
-import { useTheme } from '../contexts/ThemeContext'
+import { useTheme, type Theme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
 import { storeImage } from '../utils/imageStorage'
 import {
@@ -16,12 +16,19 @@ import {
   Image as ImageIcon,
   Images,
   Heading,
+  FolderOpen,
+  Save,
+  Moon,
+  Sun,
+  Sparkles,
+  Briefcase,
+  Flower2,
 } from 'lucide-react'
 import type { MobileToolbarProps } from '../types/components'
 import './MobileToolbar.css'
 
-const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompressingImageChange, onOpenImageManager }: MobileToolbarProps) => {
-  const { previewTheme } = useTheme()
+const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, onOpen, onCompressingImageChange, onOpenImageManager }: MobileToolbarProps) => {
+  const { theme, setTheme, previewTheme } = useTheme()
   const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
   
@@ -270,6 +277,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
         bottom: bottomPosition,
         '--mobile-toolbar-text': previewTheme.mobileToolbarText,
         '--mobile-toolbar-hover-bg': previewTheme.mobileToolbarHoverBg,
+        '--mobile-toolbar-select-bg': previewTheme.toolbarSelectBg,
         '--mobile-toolbar-border': previewTheme.borderColor,
       } as React.CSSProperties}
     >
@@ -408,6 +416,36 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
           >
             <ImageIcon size={18} />
           </button>
+        </div>
+
+        <div className="mobile-toolbar-separator" />
+
+        <div className="mobile-toolbar-group mobile-toolbar-theme-group">
+          <select
+            className="mobile-toolbar-select"
+            value={theme}
+            onChange={(e) => setTheme(e.target.value as Theme)}
+            title="Theme"
+            aria-label="Select Theme"
+          >
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+            <option value="unicorn-pastel">Unicorn Pastel</option>
+            <option value="office-plain">Office Plain</option>
+            <option value="70s-swirl">70s Swirl</option>
+          </select>
+          <div className="mobile-toolbar-theme-icon">
+            {theme === 'dark' && <Moon size={16} />}
+            {theme === 'light' && <Sun size={16} />}
+            {theme === 'unicorn-pastel' && <Sparkles size={16} />}
+            {theme === 'office-plain' && <Briefcase size={16} />}
+            {theme === '70s-swirl' && <Flower2 size={16} />}
+          </div>
+        </div>
+
+        <div className="mobile-toolbar-separator" />
+
+        <div className="mobile-toolbar-group">
           <button
             className="mobile-toolbar-button"
             onClick={onOpenImageManager}
@@ -415,6 +453,22 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
             aria-label="Manage Images"
           >
             <Images size={18} />
+          </button>
+          <button 
+            className="mobile-toolbar-button" 
+            onClick={onOpen}
+            title="Open File"
+            aria-label="Open File"
+          >
+            <FolderOpen size={18} />
+          </button>
+          <button 
+            className="mobile-toolbar-button" 
+            onClick={onSave}
+            title="Save File"
+            aria-label="Save File"
+          >
+            <Save size={18} />
           </button>
         </div>
       </div>
@@ -436,7 +490,10 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
 const MobileToolbar = memo(MobileToolbarComponent, (prevProps, nextProps) => {
   return prevProps.editorRef === nextProps.editorRef &&
          prevProps.isVisible === nextProps.isVisible &&
-         Math.abs(prevProps.keyboardOffset - nextProps.keyboardOffset) < 1
+         Math.abs(prevProps.keyboardOffset - nextProps.keyboardOffset) < 1 &&
+         prevProps.onSave === nextProps.onSave &&
+         prevProps.onOpen === nextProps.onOpen &&
+         prevProps.onOpenImageManager === nextProps.onOpenImageManager
 })
 
 MobileToolbar.displayName = 'MobileToolbar'
