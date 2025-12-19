@@ -74,8 +74,8 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
 
   const [saveState, setSaveState] = useState<Map<string, 'saving' | 'saved' | 'idle'>>(new Map())
   
-  // Ref to store the debounce timeout for auto-saving
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // Ref to store the debounce timeout for auto-saving (browser timeout ID)
+  const saveTimeoutRef = useRef<number | null>(null)
   
   // Track last saved state for each tab to detect dirty tabs
   // Only initialize for tabs loaded from localStorage, not newly created ones

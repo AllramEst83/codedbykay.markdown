@@ -20,7 +20,7 @@ interface StoredImage {
 }
 
 const ImageManager = ({ isOpen, onClose }: ImageManagerProps) => {
-  const { theme, previewTheme } = useTheme()
+  const { theme } = useTheme()
   const { tabs, updateTabContent } = useTabs()
   const { showModal } = useModal()
   const [images, setImages] = useState<StoredImage[]>([])
