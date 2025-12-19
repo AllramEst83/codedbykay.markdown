@@ -357,6 +357,21 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
           <div className="mobile-toolbar-group mobile-toolbar-heading-group">
             <select
               className="mobile-toolbar-select"
+              onMouseDown={(e) => {
+                // Prevent the default mousedown behavior that would blur the editor
+                // This keeps the keyboard visible on mobile while still allowing the select to open
+                e.preventDefault()
+              }}
+              onTouchStart={(e) => {
+                // On touch devices, prevent blur while allowing the native picker to open
+                e.preventDefault()
+                const select = e.currentTarget as HTMLSelectElement
+                // Use a small delay to ensure touch is processed
+                requestAnimationFrame(() => {
+                  select.focus()
+                  select.click()
+                })
+              }}
               onChange={(e) => {
                 const level = parseInt(e.target.value)
                 if (level > 0) {
@@ -364,6 +379,8 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
                   // Reset select to show placeholder
                   e.target.value = ''
                 }
+                // Refocus the editor after selection to restore keyboard
+                editorRef?.focus?.()
               }}
               title="Heading"
               aria-label="Select Heading"
