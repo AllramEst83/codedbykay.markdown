@@ -130,6 +130,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
         markdown(),
         history(),
         editorTheme,
+        EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !isUpdatingRef.current) {
             const newValue = update.state.doc.toString()
@@ -148,7 +149,10 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
             minHeight: '100%',
             padding: '16px',
             fontSize: '14px',
-            lineHeight: '1.6'
+            lineHeight: '1.6',
+            whiteSpace: 'pre-wrap',
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word'
           },
           '.cm-focused': {
             outline: 'none'

@@ -12,6 +12,8 @@
   margin: 0 auto;
   min-height: 100%;
   line-height: 1.6;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
   /* Color inherits from preview-container which has theme colors applied */
 }
 
