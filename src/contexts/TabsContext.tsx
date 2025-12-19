@@ -32,8 +32,9 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     const loadedTabs = localStorageService.loadTabs()
     if (loadedTabs.length === 0) {
       // Create initial tab if none exist
+      const initialTabId = `tab-${Date.now()}`
       return [{
-        id: `tab-${Date.now()}`,
+        id: initialTabId,
         title: 'Untitled',
         content: '',
       }]
@@ -48,16 +49,43 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
 
   const [activeTabId, setActiveTabId] = useState<string | null>(() => {
     const loadedTabs = localStorageService.loadTabs()
-    return loadedTabs.length > 0 ? loadedTabs[0].id : null
+    if (loadedTabs.length > 0) {
+      return loadedTabs[0].id
+    }
+    // If no tabs loaded, we created an initial tab above, so get its ID from tabs
+    // Since tabs is initialized synchronously, we can safely access tabs[0]
+    const initialTabs = (() => {
+      const loaded = localStorageService.loadTabs()
+      if (loaded.length === 0) {
+        return [{
+          id: `tab-${Date.now()}`,
+          title: 'Untitled',
+          content: '',
+        }]
+      }
+      return loaded.map((tab) => ({
+        ...tab,
+        content: typeof tab.content === 'string' ? tab.content : String(tab.content || ''),
+        title: typeof tab.title === 'string' ? tab.title : String(tab.title || 'Untitled'),
+      }))
+    })()
+    return initialTabs.length > 0 ? initialTabs[0].id : null
   })
 
   const [saveState, setSaveState] = useState<Map<string, 'saving' | 'saved' | 'idle'>>(new Map())
   
   // Track last saved state for each tab to detect dirty tabs
+  // Only initialize for tabs loaded from localStorage, not newly created ones
   const [lastSavedState, setLastSavedState] = useState<Map<string, { content: string; title: string }>>(() => {
     const saved = new Map<string, { content: string; title: string }>()
+    const loadedTabs = localStorageService.loadTabs()
+    // Only initialize lastSavedState for tabs that were actually loaded from localStorage
+    // Newly created tabs (including initial tab) should not be initialized here
     tabs.forEach((tab) => {
-      saved.set(tab.id, { content: tab.content, title: tab.title })
+      const wasLoaded = loadedTabs.some(loadedTab => loadedTab.id === tab.id)
+      if (wasLoaded) {
+        saved.set(tab.id, { content: tab.content, title: tab.title })
+      }
     })
     return saved
   })
@@ -97,11 +125,10 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     tabs.forEach((tab) => {
       const lastSaved = lastSavedState.get(tab.id)
       if (!lastSaved) {
-        // New tab with content is dirty
-        if (tab.content !== '' || tab.title !== 'Untitled') {
-          dirtyTabIds.push(tab.id)
-          dirtyTabs.push(tab)
-        }
+        // New tab that hasn't been saved yet - always mark as dirty to ensure it gets saved
+        // This handles the case where a new tab is created but hasn't been saved yet
+        dirtyTabIds.push(tab.id)
+        dirtyTabs.push(tab)
       } else {
         // Compare with last saved state
         if (lastSaved.content !== tab.content || lastSaved.title !== tab.title) {
@@ -198,12 +225,9 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
       newState.set(newTab.id, 'idle')
       return newState
     })
-    // Initialize last saved state for new tab (empty = not dirty)
-    setLastSavedState((prev) => {
-      const newState = new Map(prev)
-      newState.set(newTab.id, { content: contentString, title: titleString })
-      return newState
-    })
+    // Don't initialize lastSavedState for new tabs - let them be detected as dirty
+    // and saved automatically. This ensures new tabs are saved even if empty.
+    // lastSavedState will be set after the tab is successfully saved to localStorage.
     return newTab.id
   }, [])
 
@@ -264,7 +288,13 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
 
   const updateTabTitle = useCallback((tabId: string, title: string) => {
     setTabs((prev) =>
-      prev.map((tab) => (tab.id === tabId ? { ...tab, title } : tab))
+      prev.map((tab) => {
+        if (tab.id === tabId) {
+          // Preserve all existing properties, especially content
+          return { ...tab, title }
+        }
+        return tab
+      })
     )
   }, [])
 

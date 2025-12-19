@@ -5,6 +5,7 @@ import Toolbar from './components/Toolbar'
 import TabBar from './components/TabBar'
 import MobileToolbar from './components/MobileToolbar'
 import MobileViewToggle from './components/MobileViewToggle'
+import Spinner from './components/Spinner'
 import { useTheme } from './contexts/ThemeContext'
 import { useTabs } from './contexts/TabsContext'
 import { useDebounce } from './hooks/useDebounce'
@@ -24,11 +25,14 @@ function App() {
   const containerRef = useRef<HTMLDivElement>(null)
   const { isMobile, isKeyboardVisible, keyboardOffset } = useMobileKeyboard()
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
 
   const activeTab = useMemo(() => {
-    const tab = tabs.find((tab) => tab.id === activeTabId) || tabs[0]
+    if (!activeTabId) return null
+    const tab = tabs.find((tab) => tab.id === activeTabId)
+    if (!tab) return null
     // Ensure tab content is always a string
-    if (tab && typeof tab.content !== 'string') {
+    if (typeof tab.content !== 'string') {
       return {
         ...tab,
         content: typeof tab.content === 'object' ? '' : String(tab.content || ''),
@@ -38,7 +42,8 @@ function App() {
   }, [tabs, activeTabId])
 
   const markdown = useMemo(() => {
-    const content = activeTab?.content
+    if (!activeTab) return ''
+    const content = activeTab.content
     // Ensure markdown is always a string
     if (typeof content === 'string') {
       return content
@@ -161,9 +166,34 @@ function App() {
     }
   }, [isDragging, handleMouseMove, handleMouseUp])
 
+  // Handle initial loading
+  useEffect(() => {
+    // Simulate initial load time (you can remove this if not needed)
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [])
+
   // On mobile, show only editor or preview based on view mode
   const showEditor = !isMobile || mobileViewMode === 'editor'
   const showPreview = !isMobile || mobileViewMode === 'preview'
+
+  if (isInitialLoading) {
+    return (
+      <div 
+        className="app"
+        style={{
+          backgroundColor: previewTheme.backgroundColor,
+          '--app-border-color': previewTheme.borderColor,
+        } as React.CSSProperties}
+      >
+        <div className="spinner-overlay">
+          <Spinner size={48} message="Loading editor..." />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div 
@@ -204,7 +234,7 @@ function App() {
             }}
           >
             <Editor
-              key={activeTabId} // Force recreation when switching tabs
+              key={activeTabId} // Force recreation when switching tabs (not when title changes)
               ref={editorRef}
               value={markdown}
               onChange={handleMarkdownChange}
@@ -237,9 +267,8 @@ function App() {
                 alignItems: 'center', 
                 justifyContent: 'center', 
                 height: '100%',
-                color: previewTheme.textColor
               }}>
-                Loading preview...
+                <Spinner size={32} message="Loading preview..." />
               </div>
             }>
               <Preview

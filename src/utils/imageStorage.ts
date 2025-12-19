@@ -3,9 +3,12 @@
  * Handles efficient storage of images in localStorage with compression
  */
 
+import imageCompression from 'browser-image-compression'
+
 const IMAGE_PREFIX = 'md-editor-img-'
-const MAX_IMAGE_DIMENSION = 1920 // Max width or height
-const JPEG_QUALITY = 0.85 // 85% quality for good balance
+const MAX_FILE_SIZE_MB = 2 // Target max file size in MB
+const MAX_WIDTH_OR_HEIGHT = 1920 // Max width or height in pixels
+const MAX_STORAGE_SIZE_MB = 5 // Maximum size for localStorage (conservative estimate)
 
 interface StoredImage {
   id: string
@@ -16,64 +19,51 @@ interface StoredImage {
 }
 
 /**
- * Compresses and resizes an image file
+ * Compresses and resizes an image file using browser-image-compression
+ * The library automatically handles:
+ * - Resizing images that exceed maxWidthOrHeight
+ * - Compressing to target maxSizeMB
+ * - Preserving PNG transparency when needed
+ * - Converting PNG to JPEG when no transparency (better compression)
  */
-async function compressImage(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    
-    reader.onload = (e) => {
-      const img = new Image()
-      
-      img.onload = () => {
-        // Create canvas for resizing
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        
-        if (!ctx) {
-          reject(new Error('Could not get canvas context'))
-          return
-        }
-        
-        // Calculate new dimensions
-        let width = img.width
-        let height = img.height
-        
-        if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
-          if (width > height) {
-            height = (height / width) * MAX_IMAGE_DIMENSION
-            width = MAX_IMAGE_DIMENSION
-          } else {
-            width = (width / height) * MAX_IMAGE_DIMENSION
-            height = MAX_IMAGE_DIMENSION
-          }
-        }
-        
-        canvas.width = width
-        canvas.height = height
-        
-        // Draw and compress
-        ctx.drawImage(img, 0, 0, width, height)
-        
-        // Convert to data URL with compression
-        // Use JPEG for photos, PNG for images with transparency
-        const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
-        const dataUrl = canvas.toDataURL(mimeType, JPEG_QUALITY)
-        
-        resolve(dataUrl)
-      }
-      
-      img.onerror = () => reject(new Error('Failed to load image'))
-      img.src = e.target?.result as string
+async function compressImage(
+  file: File, 
+  options?: {
+    maxSizeMB?: number
+    maxWidthOrHeight?: number
+    initialQuality?: number
+  }
+): Promise<string> {
+  try {
+    const compressionOptions = {
+      maxSizeMB: options?.maxSizeMB ?? MAX_FILE_SIZE_MB,
+      maxWidthOrHeight: options?.maxWidthOrHeight ?? MAX_WIDTH_OR_HEIGHT,
+      useWebWorker: true, // Use web worker for non-blocking compression (better performance)
+      initialQuality: options?.initialQuality ?? 0.85, // Start with 85% quality
+      // Let the library automatically decide on file type conversion
+      // It will preserve PNG if transparency exists, convert to JPEG otherwise
     }
+
+    const compressedFile = await imageCompression(file, compressionOptions)
     
-    reader.onerror = () => reject(new Error('Failed to read file'))
-    reader.readAsDataURL(file)
-  })
+    // Convert compressed file to data URL
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        resolve(e.target?.result as string)
+      }
+      reader.onerror = () => reject(new Error('Failed to read compressed file'))
+      reader.readAsDataURL(compressedFile)
+    })
+  } catch (error) {
+    console.error('Image compression error:', error)
+    throw new Error(error instanceof Error ? error.message : 'Failed to compress image')
+  }
 }
 
 /**
  * Stores an image in localStorage
+ * Automatically compresses images that are too large instead of throwing an error
  */
 export async function storeImage(file: File): Promise<string> {
   try {
@@ -82,8 +72,64 @@ export async function storeImage(file: File): Promise<string> {
       throw new Error('File must be an image')
     }
     
-    // Compress image
-    const dataUrl = await compressImage(file)
+    // Try compression with progressively more aggressive settings
+    let dataUrl: string | null = null
+    let compressionAttempt = 0
+    const maxAttempts = 4
+    
+    while (compressionAttempt < maxAttempts) {
+      // Progressive compression: start normal, get more aggressive each attempt
+      const maxSizeMB = compressionAttempt === 0 ? MAX_FILE_SIZE_MB : 
+                        compressionAttempt === 1 ? 1.5 : 
+                        compressionAttempt === 2 ? 1.0 : 0.5
+      
+      const maxWidthOrHeight = compressionAttempt === 0 ? MAX_WIDTH_OR_HEIGHT :
+                               compressionAttempt === 1 ? 1280 :
+                               compressionAttempt === 2 ? 960 : 640
+      
+      const initialQuality = compressionAttempt === 0 ? 0.85 :
+                            compressionAttempt === 1 ? 0.75 :
+                            compressionAttempt === 2 ? 0.65 : 0.5
+      
+      try {
+        const compressed = await compressImage(file, {
+          maxSizeMB,
+          maxWidthOrHeight,
+          initialQuality
+        })
+        
+        // Check if compressed size fits in localStorage
+        // Estimate: data URL length * 2 for UTF-16 encoding + JSON overhead
+        const estimatedSize = (compressed.length * 2) + (compressed.length * 0.1) // Add 10% for JSON overhead
+        
+        dataUrl = compressed
+        
+        if (estimatedSize <= MAX_STORAGE_SIZE_MB * 1024 * 1024) {
+          // Size is acceptable, break out of loop
+          break
+        }
+        
+        // If this was the last attempt, use what we have
+        if (compressionAttempt === maxAttempts - 1) {
+          console.warn('Image still large after maximum compression attempts, using best available compression')
+          break
+        }
+        
+        // Try more aggressive compression
+        compressionAttempt++
+        console.log(`Image still too large (${(estimatedSize / 1024 / 1024).toFixed(2)}MB), trying more aggressive compression...`)
+      } catch (error) {
+        // If compression fails, try next attempt or throw if last attempt
+        if (compressionAttempt === maxAttempts - 1) {
+          throw error
+        }
+        compressionAttempt++
+      }
+    }
+    
+    if (!dataUrl) {
+      throw new Error('Failed to compress image after multiple attempts')
+    }
     
     // Generate unique ID
     const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
@@ -98,18 +144,12 @@ export async function storeImage(file: File): Promise<string> {
       size: dataUrl.length
     }
     
-    // Check localStorage space (rough estimate)
-    const estimatedSize = dataUrl.length * 2 // UTF-16 encoding
-    if (estimatedSize > 5 * 1024 * 1024) { // 5MB limit (conservative)
-      throw new Error('Image too large. Please use a smaller image.')
-    }
-    
     // Store in localStorage
     try {
       localStorage.setItem(key, JSON.stringify(storedImage))
     } catch (error) {
-      // localStorage quota exceeded
-      throw new Error('Storage quota exceeded. Please delete some images.')
+      // localStorage quota exceeded - try to free up space or inform user
+      throw new Error('Storage quota exceeded. Please delete some images or use a smaller image.')
     }
     
     return dataUrl

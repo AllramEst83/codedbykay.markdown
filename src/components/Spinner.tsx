@@ -1,0 +1,40 @@
+import { Loader2 } from 'lucide-react'
+import { useTheme } from '../contexts/ThemeContext'
+import './Spinner.css'
+
+interface SpinnerProps {
+  size?: number
+  className?: string
+  message?: string
+}
+
+export const Spinner = ({ size = 24, className = '', message }: SpinnerProps) => {
+  const { theme, previewTheme } = useTheme()
+  
+  // Determine spinner color based on theme
+  const spinnerColor = theme === 'dark' 
+    ? '#e8e8e8'
+    : theme === 'light'
+    ? '#212121'
+    : theme === 'rainbow'
+    ? '#00ffff'
+    : '#2d3748'
+
+  return (
+    <div className={`spinner-container ${className}`}>
+      <Loader2 
+        className="spinner-icon" 
+        size={size}
+        color={spinnerColor}
+      />
+      {message && (
+        <p className="spinner-message" style={{ color: previewTheme.textColor }}>
+          {message}
+        </p>
+      )}
+    </div>
+  )
+}
+
+export default Spinner
+

@@ -1,7 +1,8 @@
-import { useCallback, useRef, memo } from 'react'
+import { useCallback, useRef, memo, useState } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
 import { storeImage } from '../utils/imageStorage'
+import Spinner from './Spinner'
 import {
   Undo2,
   Redo2,
@@ -37,6 +38,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: Mobile
   const { theme, previewTheme } = useTheme()
   const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const [isCompressingImage, setIsCompressingImage] = useState(false)
   
   const handleAction = useCallback((action: () => void) => {
     if (editorRef) {
@@ -164,38 +166,81 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: Mobile
     const file = event.target.files?.[0]
     if (!file) return
 
+    // Check if editor is available
+    if (!editorRef) {
+      await showModal({
+        type: 'alert',
+        title: 'Error',
+        message: 'Editor is not ready. Please try again.',
+        confirmText: 'OK'
+      })
+      return
+    }
+
+    // Store file reference before resetting input
+    const selectedText = editorRef.getSelectedText()
+    const fileName = file.name.replace(/\.[^/.]+$/, '')
+    
+    // Reset input immediately to allow selecting the same file again
+    event.target.value = ''
+
+    setIsCompressingImage(true)
     try {
-      const selectedText = editorRef!.getSelectedText()
+      // Use requestAnimationFrame to ensure file picker is closed before processing
+      // This is especially important on mobile devices
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setTimeout(resolve, 150) // Additional delay for mobile file picker
+          })
+        })
+      })
+      
       const dataUrl = await storeImage(file)
+      
+      setIsCompressingImage(false)
+      
+      // Ensure UI is ready before showing modal
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 50)
+        })
+      })
+      
       const alt = await showModal({
         type: 'prompt',
         title: 'Insert Image',
         message: 'Enter alt text for the image:',
-        defaultValue: selectedText || file.name.replace(/\.[^/.]+$/, ''),
+        defaultValue: selectedText || fileName,
         placeholder: 'Image description',
         confirmText: 'Insert',
         cancelText: 'Cancel'
       })
       
-      if (alt !== null) {
+      if (alt !== null && editorRef) {
         handleAction(() => {
           if (selectedText) {
-            editorRef!.replaceSelection(`![${alt || 'image'}](${dataUrl})`)
+            editorRef.replaceSelection(`![${alt || 'image'}](${dataUrl})`)
           } else {
-            editorRef!.insertText(`![${alt || 'image'}](${dataUrl})`)
+            editorRef.insertText(`![${alt || 'image'}](${dataUrl})`)
           }
         })
       }
     } catch (error) {
+      setIsCompressingImage(false)
       console.error('Failed to insert image:', error)
+      // Ensure UI is ready before showing error modal
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 100)
+        })
+      })
       await showModal({
         type: 'alert',
         title: 'Error',
         message: error instanceof Error ? error.message : 'Failed to insert image',
         confirmText: 'OK'
       })
-    } finally {
-      event.target.value = ''
     }
   }, [handleAction, editorRef, showModal])
 
@@ -372,6 +417,13 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset }: Mobile
         style={{ display: 'none' }}
         aria-hidden="true"
       />
+      
+      {/* Loading overlay for image compression */}
+      {isCompressingImage && (
+        <div className="spinner-overlay">
+          <Spinner size={48} message="Compressing image..." />
+        </div>
+      )}
     </div>
   )
 }

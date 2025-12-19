@@ -1,7 +1,8 @@
-import { useCallback, useRef, memo } from 'react'
+import { useCallback, useRef, memo, useState } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
 import { storeImage } from '../utils/imageStorage'
+import Spinner from './Spinner'
 import {
   Undo2,
   Redo2,
@@ -43,6 +44,7 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
   const { theme, setTheme, previewTheme } = useTheme()
   const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const [isCompressingImage, setIsCompressingImage] = useState(false)
   
   const handleAction = useCallback((action: () => void) => {
     if (editorRef) {
@@ -176,11 +178,28 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
     const file = event.target.files?.[0]
     if (!file) return
 
+    // Reset input immediately to allow selecting the same file again
+    event.target.value = ''
+
+    // Check if editor is available
+    if (!editorRef) {
+      await showModal({
+        type: 'alert',
+        title: 'Error',
+        message: 'Editor is not ready. Please try again.',
+        confirmText: 'OK'
+      })
+      return
+    }
+
+    setIsCompressingImage(true)
     try {
-      const selectedText = editorRef!.getSelectedText()
+      const selectedText = editorRef.getSelectedText()
       
-      // Store image and get data URL
+      // Store image and get data URL (this compresses the image)
       const dataUrl = await storeImage(file)
+      
+      setIsCompressingImage(false)
       
       // Prompt for alt text
       const alt = await showModal({
@@ -194,16 +213,17 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
       })
       
       // Insert markdown with stored image
-      if (alt !== null) {
+      if (alt !== null && editorRef) {
         handleAction(() => {
           if (selectedText) {
-            editorRef!.replaceSelection(`![${alt || 'image'}](${dataUrl})`)
+            editorRef.replaceSelection(`![${alt || 'image'}](${dataUrl})`)
           } else {
-            editorRef!.insertText(`![${alt || 'image'}](${dataUrl})`)
+            editorRef.insertText(`![${alt || 'image'}](${dataUrl})`)
           }
         })
       }
     } catch (error) {
+      setIsCompressingImage(false)
       console.error('Failed to insert image:', error)
       await showModal({
         type: 'alert',
@@ -211,9 +231,6 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
         message: error instanceof Error ? error.message : 'Failed to insert image',
         confirmText: 'OK'
       })
-    } finally {
-      // Reset input so the same file can be selected again
-      event.target.value = ''
     }
   }, [handleAction, editorRef, showModal])
 
@@ -433,6 +450,13 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen }: ToolbarProps) => {
         style={{ display: 'none' }}
         aria-hidden="true"
       />
+      
+      {/* Loading overlay for image compression */}
+      {isCompressingImage && (
+        <div className="spinner-overlay">
+          <Spinner size={48} message="Compressing image..." />
+        </div>
+      )}
     </div>
   )
 }
