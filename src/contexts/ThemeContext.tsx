@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { Extension } from '@codemirror/state'
 import { oneDark } from '@codemirror/theme-one-dark'
-import { lightTheme, unicornPastelTheme, officePlainTheme, seventiesSwirlTheme } from '../themes/codemirrorThemes'
+import { createCodeMirrorTheme } from '../themes/codemirrorThemes'
 import type { Theme, ThemeContextType, PreviewTheme, ThemeProviderProps } from '../types/contexts'
 
 export type { Theme }
@@ -138,47 +138,6 @@ const themes: Record<Theme, PreviewTheme> = {
     // Syntax highlighter theme
     codeHighlightTheme: 'light',
   },
-  rainbow: {
-    // Explosion of colors! Every element gets a different vibrant color
-    backgroundColor: '#0a0a1a', // Very dark blue-black for maximum color contrast
-    textColor: '#ff69b4', // Hot pink text
-    codeBackground: '#1a0a2d', // Dark blue-purple background for code blocks
-    codeTextColor: '#00ff00', // Bright lime green for code
-    borderColor: '#ff00ff', // Bright magenta borders
-    linkColor: '#00ffff', // Bright cyan links
-    blockquoteColor: '#ffff00', // Bright yellow for blockquotes
-    blockquoteBorder: '#ff1493', // Deep pink border
-    tableBorder: '#00ff00', // Lime green table borders
-    tableHeaderBg: '#ff00ff30', // Semi-transparent magenta header with more opacity
-    // Heading colors - vibrant rainbow colors
-    h1Color: '#ff0000', // Bright red for h1
-    h2Color: '#ff8800', // Bright orange for h2
-    h3Color: '#ffff00', // Bright yellow for h3
-    h4Color: '#00ff00', // Bright green for h4
-    // Toolbar colors
-    toolbarBg: '#1a0a2d',
-    toolbarText: '#00ffff',
-    toolbarHoverBg: '#2d1a4d',
-    toolbarSelectBg: '#3d2a5d',
-    // Tab bar colors
-    tabBarBg: '#1a0a2d',
-    tabBg: '#2d1a4d',
-    tabActiveBg: '#0a0a1a',
-    tabText: '#ff69b4',
-    // Mobile toolbar colors
-    mobileToolbarBg: '#1a0a2d',
-    mobileToolbarText: '#00ff00',
-    mobileToolbarHoverBg: '#2d1a4d',
-    // Mobile view toggle colors
-    toggleBg: '#1a0a2d',
-    toggleText: '#ffff00',
-    toggleActiveBg: '#ff00ff',
-    toggleInactiveBg: '#2d1a4d',
-    // Spinner color
-    spinnerColor: '#00ffff',
-    // Syntax highlighter theme
-    codeHighlightTheme: 'dark',
-  },
   'office-plain': {
     // Sober, professional office aesthetic
     backgroundColor: '#f8f8f8', // Neutral office gray
@@ -284,7 +243,9 @@ export const useTheme = () => {
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem('markdown-editor-theme')
-    return (saved as Theme) || 'dark'
+    // Validate that the saved theme is a valid Theme
+    const validThemes: Theme[] = ['dark', 'light', 'unicorn-pastel', 'office-plain', '70s-swirl']
+    return (saved && validThemes.includes(saved as Theme)) ? (saved as Theme) : 'dark'
   })
 
   useEffect(() => {
@@ -295,14 +256,34 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     setThemeState(newTheme)
   }
 
-  const editorTheme: Extension = 
-    theme === 'dark' ? oneDark :
-    theme === 'light' ? lightTheme :
-    theme === 'office-plain' ? officePlainTheme :
-    theme === '70s-swirl' ? seventiesSwirlTheme :
-    unicornPastelTheme
-
-  const previewTheme = themes[theme]
+  // Generate CodeMirror theme from centralized theme colors
+  // Add fallback to ensure previewTheme is never undefined
+  const previewTheme = themes[theme] || themes.dark
+  
+  // Create CodeMirror theme with theme-specific overrides
+  const editorTheme: Extension = theme === 'dark' 
+    ? oneDark 
+    : createCodeMirrorTheme({
+        ...previewTheme,
+        // Theme-specific CodeMirror color overrides
+        ...(theme === 'light' && {
+          selectionBg: '#b3d4fc', // Light blue selection
+        }),
+        ...(theme === 'unicorn-pastel' && {
+          cursorColor: '#c026d3', // Pink cursor (uses linkColor)
+        }),
+        ...(theme === 'office-plain' && {
+          selectionBg: '#d0d0d0', // Subtle gray selection
+        }),
+        ...(theme === '70s-swirl' && {
+          lineNumberColor: '#8b6f47', // Brown line numbers (uses codeTextColor)
+          cursorColor: '#f57c00', // Orange cursor (uses h3Color)
+          selectionBg: '#ffb74d', // Warm yellow-orange selection
+          gutterBorderWidth: '2px', // Thicker border for 70s theme
+          cursorWidth: '2px', // Thicker cursor for 70s theme
+          lineNumberFontWeight: '500', // Medium weight for line numbers
+        }),
+      })
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, editorTheme, previewTheme }}>

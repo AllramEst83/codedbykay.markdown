@@ -60,3 +60,18 @@ export interface ThemeProviderProps {
   children: React.ReactNode
 }
 
+/**
+ * Extended theme interface for CodeMirror-specific colors
+ * These can be provided or will be derived from PreviewTheme
+ */
+export interface CodeMirrorThemeColors extends PreviewTheme {
+  // CodeMirror-specific colors (optional, will be derived if not provided)
+  gutterBg?: string
+  lineNumberColor?: string
+  cursorColor?: string
+  selectionBg?: string
+  gutterBorderWidth?: string
+  cursorWidth?: string
+  lineNumberFontWeight?: string
+}
+
