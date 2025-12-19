@@ -27,6 +27,29 @@ const themes: Record<Theme, PreviewTheme> = {
     h2Color: '#7bc5ff', // Bright blue for h2
     h3Color: '#4ade80', // Bright green for h3
     h4Color: '#fbbf24', // Bright yellow for h4
+    // Toolbar colors
+    toolbarBg: '#252526',
+    toolbarText: '#e8e8e8',
+    toolbarHoverBg: '#2a2d2e',
+    toolbarSelectBg: '#2a2d2e',
+    // Tab bar colors
+    tabBarBg: '#252526',
+    tabBg: '#2d2d30',
+    tabActiveBg: '#1e1e1e',
+    tabText: '#e8e8e8',
+    // Mobile toolbar colors
+    mobileToolbarBg: '#252526',
+    mobileToolbarText: '#e8e8e8',
+    mobileToolbarHoverBg: '#2a2d2e',
+    // Mobile view toggle colors
+    toggleBg: '#252526',
+    toggleText: '#e8e8e8',
+    toggleActiveBg: '#007acc',
+    toggleInactiveBg: '#2a2d2e',
+    // Spinner color
+    spinnerColor: '#e8e8e8',
+    // Syntax highlighter theme
+    codeHighlightTheme: 'dark',
   },
   light: {
     // WCAG AA compliant: #212121 on #ffffff = 15.8:1 ✓
@@ -47,6 +70,29 @@ const themes: Record<Theme, PreviewTheme> = {
     h2Color: '#006400', // Dark green for h2
     h3Color: '#7c3aed', // Dark purple for h3
     h4Color: '#c2410c', // Dark orange for h4
+    // Toolbar colors
+    toolbarBg: '#f5f5f5',
+    toolbarText: '#212121',
+    toolbarHoverBg: '#e8e8e8',
+    toolbarSelectBg: '#ffffff',
+    // Tab bar colors
+    tabBarBg: '#f5f5f5',
+    tabBg: '#e8e8e8',
+    tabActiveBg: '#ffffff',
+    tabText: '#212121',
+    // Mobile toolbar colors
+    mobileToolbarBg: '#f5f5f5',
+    mobileToolbarText: '#212121',
+    mobileToolbarHoverBg: '#e8e8e8',
+    // Mobile view toggle colors
+    toggleBg: '#f5f5f5',
+    toggleText: '#212121',
+    toggleActiveBg: '#0066cc',
+    toggleInactiveBg: '#e8e8e8',
+    // Spinner color
+    spinnerColor: '#212121',
+    // Syntax highlighter theme
+    codeHighlightTheme: 'light',
   },
   'unicorn-pastel': {
     // WCAG AA compliant: #2d3748 on #fff5f7 = 12.1:1 ✓
@@ -68,6 +114,29 @@ const themes: Record<Theme, PreviewTheme> = {
     h2Color: '#c026d3', // Pink-purple for h2
     h3Color: '#ec4899', // Pink for h3
     h4Color: '#f472b6', // Light pink for h4
+    // Toolbar colors
+    toolbarBg: '#fef1f2',
+    toolbarText: '#2d3748',
+    toolbarHoverBg: '#fce7f3',
+    toolbarSelectBg: '#ffffff',
+    // Tab bar colors
+    tabBarBg: '#fef1f2',
+    tabBg: '#ffffff',
+    tabActiveBg: '#fff5f7',
+    tabText: '#2d3748',
+    // Mobile toolbar colors
+    mobileToolbarBg: '#fef1f2',
+    mobileToolbarText: '#2d3748',
+    mobileToolbarHoverBg: '#fce7f3',
+    // Mobile view toggle colors
+    toggleBg: '#fef1f2',
+    toggleText: '#2d3748',
+    toggleActiveBg: '#ff6b9d',
+    toggleInactiveBg: '#fce7f3',
+    // Spinner color
+    spinnerColor: '#2d3748',
+    // Syntax highlighter theme
+    codeHighlightTheme: 'light',
   },
   rainbow: {
     // Explosion of colors! Every element gets a different vibrant color
@@ -86,6 +155,29 @@ const themes: Record<Theme, PreviewTheme> = {
     h2Color: '#ff8800', // Bright orange for h2
     h3Color: '#ffff00', // Bright yellow for h3
     h4Color: '#00ff00', // Bright green for h4
+    // Toolbar colors
+    toolbarBg: '#1a0a2d',
+    toolbarText: '#00ffff',
+    toolbarHoverBg: '#2d1a4d',
+    toolbarSelectBg: '#3d2a5d',
+    // Tab bar colors
+    tabBarBg: '#1a0a2d',
+    tabBg: '#2d1a4d',
+    tabActiveBg: '#0a0a1a',
+    tabText: '#ff69b4',
+    // Mobile toolbar colors
+    mobileToolbarBg: '#1a0a2d',
+    mobileToolbarText: '#00ff00',
+    mobileToolbarHoverBg: '#2d1a4d',
+    // Mobile view toggle colors
+    toggleBg: '#1a0a2d',
+    toggleText: '#ffff00',
+    toggleActiveBg: '#ff00ff',
+    toggleInactiveBg: '#2d1a4d',
+    // Spinner color
+    spinnerColor: '#00ffff',
+    // Syntax highlighter theme
+    codeHighlightTheme: 'dark',
   },
   'office-plain': {
     // Sober, professional office aesthetic
@@ -108,6 +200,29 @@ const themes: Record<Theme, PreviewTheme> = {
     h2Color: '#2c2c2c', // Dark gray for h2
     h3Color: '#3d3d3d', // Medium gray for h3
     h4Color: '#4a4a4a', // Lighter gray for h4
+    // Toolbar colors
+    toolbarBg: '#e8e8e8',
+    toolbarText: '#2c2c2c',
+    toolbarHoverBg: '#d0d0d0',
+    toolbarSelectBg: '#ffffff',
+    // Tab bar colors
+    tabBarBg: '#e8e8e8',
+    tabBg: '#d0d0d0',
+    tabActiveBg: '#f8f8f8',
+    tabText: '#2c2c2c',
+    // Mobile toolbar colors
+    mobileToolbarBg: '#e8e8e8',
+    mobileToolbarText: '#2c2c2c',
+    mobileToolbarHoverBg: '#d0d0d0',
+    // Mobile view toggle colors
+    toggleBg: '#e8e8e8',
+    toggleText: '#2c2c2c',
+    toggleActiveBg: '#0066cc',
+    toggleInactiveBg: '#d0d0d0',
+    // Spinner color
+    spinnerColor: '#2c2c2c',
+    // Syntax highlighter theme
+    codeHighlightTheme: 'light',
   },
   '70s-swirl': {
     // Retro 70s color palette: browns, yellows, oranges, and earth tones
@@ -130,6 +245,29 @@ const themes: Record<Theme, PreviewTheme> = {
     h2Color: '#d84315', // Burnt orange for h2
     h3Color: '#f57c00', // Deep orange for h3
     h4Color: '#b8620a', // Muted orange-brown for h4 - WCAG compliant
+    // Toolbar colors
+    toolbarBg: '#e8d5c4',
+    toolbarText: '#5d4037',
+    toolbarHoverBg: '#d5c4b4',
+    toolbarSelectBg: '#f5e6d3',
+    // Tab bar colors
+    tabBarBg: '#e8d5c4',
+    tabBg: '#d5c4b4',
+    tabActiveBg: '#f5e6d3',
+    tabText: '#5d4037',
+    // Mobile toolbar colors
+    mobileToolbarBg: '#e8d5c4',
+    mobileToolbarText: '#5d4037',
+    mobileToolbarHoverBg: '#d5c4b4',
+    // Mobile view toggle colors
+    toggleBg: '#e8d5c4',
+    toggleText: '#5d4037',
+    toggleActiveBg: '#d84315',
+    toggleInactiveBg: '#d5c4b4',
+    // Spinner color
+    spinnerColor: '#5d4037',
+    // Syntax highlighter theme
+    codeHighlightTheme: 'light',
   },
 }
 
