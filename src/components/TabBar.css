@@ -43,8 +43,8 @@
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
-  min-width: 120px;
-  max-width: 240px;
+  min-width: 140px;
+  max-width: 280px;
   position: relative;
   transition: all 0.2s ease;
 }
@@ -161,8 +161,8 @@
 
 @media (max-width: 768px) {
   .tab {
-    min-width: 100px;
-    max-width: 180px;
+    min-width: 120px;
+    max-width: 200px;
     padding: 6px 10px;
   }
   
