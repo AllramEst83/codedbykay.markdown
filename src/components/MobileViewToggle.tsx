@@ -1,14 +1,8 @@
 import { memo } from 'react'
 import { Edit, Eye } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
+import type { MobileViewToggleProps } from '../types/components'
 import './MobileViewToggle.css'
-
-type ViewMode = 'editor' | 'preview'
-
-interface MobileViewToggleProps {
-  viewMode: ViewMode
-  onViewModeChange: (mode: ViewMode) => void
-}
 
 const MobileViewToggleComponent = ({ viewMode, onViewModeChange }: MobileViewToggleProps) => {
   const { theme, previewTheme } = useTheme()

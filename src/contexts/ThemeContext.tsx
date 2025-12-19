@@ -1,29 +1,10 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { Extension } from '@codemirror/state'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { lightTheme, unicornPastelTheme, rainbowTheme } from '../themes/codemirrorThemes'
+import type { Theme, ThemeContextType, PreviewTheme, ThemeProviderProps } from '../types/contexts'
 
-export type Theme = 'dark' | 'light' | 'unicorn-pastel' | 'rainbow'
-
-interface ThemeContextType {
-  theme: Theme
-  setTheme: (theme: Theme) => void
-  editorTheme: Extension
-  previewTheme: PreviewTheme
-}
-
-interface PreviewTheme {
-  backgroundColor: string
-  textColor: string
-  codeBackground: string
-  codeTextColor: string
-  borderColor: string
-  linkColor: string
-  blockquoteColor: string
-  blockquoteBorder: string
-  tableBorder: string
-  tableHeaderBg: string
-}
+export type { Theme }
 
 const themes: Record<Theme, PreviewTheme> = {
   dark: {
@@ -96,10 +77,6 @@ export const useTheme = () => {
     throw new Error('useTheme must be used within a ThemeProvider')
   }
   return context
-}
-
-interface ThemeProviderProps {
-  children: ReactNode
 }
 
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {

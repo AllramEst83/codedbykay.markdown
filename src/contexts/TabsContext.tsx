@@ -1,17 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react'
-import { TabData, localStorageService } from '../services/localStorageService'
-
-interface TabsContextType {
-  tabs: TabData[]
-  activeTabId: string | null
-  addTab: (initialContent?: string, initialTitle?: string) => string
-  closeTab: (tabId: string) => void
-  switchTab: (tabId: string) => void
-  updateTabContent: (tabId: string, content: string) => void
-  updateTabTitle: (tabId: string, title: string) => void
-  saveTab: (tabId: string) => void
-  saveState: Map<string, 'saving' | 'saved' | 'idle'>
-}
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { localStorageService } from '../services/localStorageService'
+import type { TabData } from '../types/services'
+import type { TabsContextType, TabsProviderProps } from '../types/contexts'
 
 const TabsContext = createContext<TabsContextType | undefined>(undefined)
 
@@ -21,10 +11,6 @@ export const useTabs = () => {
     throw new Error('useTabs must be used within a TabsProvider')
   }
   return context
-}
-
-interface TabsProviderProps {
-  children: ReactNode
 }
 
 export const TabsProvider = ({ children }: TabsProviderProps) => {

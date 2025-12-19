@@ -1,12 +1,7 @@
 import { Loader2 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
+import type { SpinnerProps } from '../types/components'
 import './Spinner.css'
-
-interface SpinnerProps {
-  size?: number
-  className?: string
-  message?: string
-}
 
 export const Spinner = ({ size = 24, className = '', message }: SpinnerProps) => {
   const { theme, previewTheme } = useTheme()

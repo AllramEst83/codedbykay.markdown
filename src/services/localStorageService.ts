@@ -1,14 +1,6 @@
-export interface TabData {
-  id: string
-  title: string
-  content: string
-  lastSaved?: number
-}
+import type { TabData, TabMetadata } from '../types/services'
 
-interface TabMetadata {
-  tabIds: string[]
-  activeTabId: string | null
-}
+export type { TabData }
 
 const METADATA_KEY = 'markdown-editor-metadata'
 const TAB_KEY_PREFIX = 'markdown-editor-tab-'

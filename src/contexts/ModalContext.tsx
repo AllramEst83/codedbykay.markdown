@@ -1,23 +1,9 @@
-import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useTheme } from './ThemeContext'
 import '../components/Modal.css'
+import type { ModalOptions, ModalContextType, ModalProviderProps, ModalComponentProps } from '../types/contexts'
 
-export interface ModalOptions {
-  title?: string
-  message?: string
-  defaultValue?: string
-  placeholder?: string
-  confirmText?: string
-  cancelText?: string
-  type?: 'prompt' | 'alert' | 'confirm'
-}
-
-interface ModalContextType {
-  showModal: (options: ModalOptions) => Promise<string | null>
-  closeModal: () => void
-  isOpen: boolean
-  modalOptions: ModalOptions | null
-}
+export type { ModalOptions }
 
 const ModalContext = createContext<ModalContextType | undefined>(undefined)
 
@@ -27,10 +13,6 @@ export const useModal = () => {
     throw new Error('useModal must be used within a ModalProvider')
   }
   return context
-}
-
-interface ModalProviderProps {
-  children: ReactNode
 }
 
 export const ModalProvider = ({ children }: ModalProviderProps) => {
@@ -87,12 +69,6 @@ export const ModalProvider = ({ children }: ModalProviderProps) => {
       )}
     </ModalContext.Provider>
   )
-}
-
-interface ModalComponentProps {
-  options: ModalOptions
-  onConfirm: (value: string | null) => void
-  onCancel: () => void
 }
 
 const ModalComponent = ({ options, onConfirm, onCancel }: ModalComponentProps) => {

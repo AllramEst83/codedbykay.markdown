@@ -22,25 +22,8 @@ import {
   Palette,
   Images
 } from 'lucide-react'
+import type { ToolbarProps } from '../types/components'
 import './Toolbar.css'
-
-interface EditorRef {
-  insertText: (text: string) => void
-  wrapSelection: (before: string, after?: string) => void
-  replaceSelection: (text: string) => void
-  getSelectedText: () => string
-  hasSelection: () => boolean
-  undo: () => void
-  redo: () => void
-}
-
-interface ToolbarProps {
-  editorRef: EditorRef | null
-  onSave: () => void
-  onOpen: () => void
-  onCompressingImageChange: (isCompressing: boolean) => void
-  onOpenImageManager: () => void
-}
 
 const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange, onOpenImageManager }: ToolbarProps) => {
   const { theme, setTheme, previewTheme } = useTheme()

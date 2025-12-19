@@ -16,25 +16,8 @@ import {
   Image as ImageIcon,
   Images,
 } from 'lucide-react'
+import type { MobileToolbarProps } from '../types/components'
 import './MobileToolbar.css'
-
-interface EditorRef {
-  insertText: (text: string) => void
-  wrapSelection: (before: string, after?: string) => void
-  replaceSelection: (text: string) => void
-  getSelectedText: () => string
-  hasSelection: () => boolean
-  undo: () => void
-  redo: () => void
-}
-
-interface MobileToolbarProps {
-  editorRef: EditorRef | null
-  isVisible: boolean
-  keyboardOffset: number
-  onCompressingImageChange: (isCompressing: boolean) => void
-  onOpenImageManager: () => void
-}
 
 const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompressingImageChange, onOpenImageManager }: MobileToolbarProps) => {
   const { theme, previewTheme } = useTheme()

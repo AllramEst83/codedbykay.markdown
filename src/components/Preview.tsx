@@ -7,12 +7,8 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useTheme } from '../contexts/ThemeContext'
 import { getImageUrlForRendering } from '../utils/imageStorage'
+import type { PreviewProps } from '../types/components'
 import './Preview.css'
-
-interface PreviewProps {
-  markdown: string
-  onScroll?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void
-}
 
 // Component to handle image URL conversion
 const MarkdownImage = ({ src, alt, ...props }: { src?: string; alt?: string; [key: string]: any }) => {

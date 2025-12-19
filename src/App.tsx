@@ -12,9 +12,8 @@ import { useTabs } from './contexts/TabsContext'
 import { useDebounce } from './hooks/useDebounce'
 import { useMobileKeyboard } from './hooks/useMobileKeyboard'
 import { migrateFromLocalStorage } from './utils/imageStorage'
+import type { MobileViewMode } from './types/app'
 import './App.css'
-
-type MobileViewMode = 'editor' | 'preview'
 
 function App() {
   const { previewTheme } = useTheme()

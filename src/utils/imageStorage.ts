@@ -5,7 +5,8 @@
  */
 
 import imageCompression from 'browser-image-compression'
-import { openDB, DBSchema, IDBPDatabase } from 'idb'
+import { openDB, IDBPDatabase } from 'idb'
+import type { ImageDB, StoredImage } from '../types/services'
 
 const DB_NAME = 'markdown-editor-images'
 const DB_VERSION = 1
@@ -13,28 +14,6 @@ const STORE_NAME = 'images'
 
 const MAX_FILE_SIZE_MB = 5 // Increased since we're using IndexedDB (can handle larger files)
 const MAX_WIDTH_OR_HEIGHT = 1920 // Max width or height in pixels
-
-interface ImageDB extends DBSchema {
-  images: {
-    key: string // image ID
-    value: {
-      id: string
-      blob: Blob // Store as Blob instead of data URL
-      filename: string
-      timestamp: number
-      size: number
-    }
-    indexes: { 'by-timestamp': number }
-  }
-}
-
-interface StoredImage {
-  id: string
-  dataUrl: string // Object URL created from Blob
-  filename: string
-  timestamp: number
-  size: number
-}
 
 // Cache for database instance
 let dbPromise: Promise<IDBPDatabase<ImageDB>> | null = null

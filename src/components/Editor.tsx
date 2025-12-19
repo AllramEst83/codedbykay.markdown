@@ -4,22 +4,9 @@ import { EditorView, keymap } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, undo, redo } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { useTheme } from '../contexts/ThemeContext'
+import type { EditorProps, EditorRef } from '../types/components'
 
-interface EditorProps {
-  value: string
-  onChange: (value: string) => void
-  onScroll?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void
-}
-
-export interface EditorRef {
-  insertText: (text: string) => void
-  wrapSelection: (before: string, after?: string) => void
-  replaceSelection: (text: string) => void
-  getSelectedText: () => string
-  hasSelection: () => boolean
-  undo: () => void
-  redo: () => void
-}
+export type { EditorRef }
 
 const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }, ref) => {
   const { editorTheme } = useTheme()

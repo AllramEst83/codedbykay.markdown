@@ -4,20 +4,8 @@ import { useTabs } from '../contexts/TabsContext'
 import { useModal } from '../contexts/ModalContext'
 import { getAllStoredImages, deleteImage } from '../utils/imageStorage'
 import { X, Trash2, Eye, Image as ImageIcon } from 'lucide-react'
+import type { ImageManagerProps, StoredImage } from '../types/components'
 import './ImageManager.css'
-
-interface ImageManagerProps {
-  isOpen: boolean
-  onClose: () => void
-}
-
-interface StoredImage {
-  id: string
-  dataUrl: string
-  filename: string
-  timestamp: number
-  size: number
-}
 
 const ImageManager = ({ isOpen, onClose }: ImageManagerProps) => {
   const { theme } = useTheme()
