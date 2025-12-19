@@ -4,6 +4,7 @@
   overflow-x: auto;
   overflow-y: hidden;
   min-height: 36px;
+  border-bottom: 1px solid var(--tab-border, #333);
 }
 
 .tabs-container {
