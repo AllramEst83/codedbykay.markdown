@@ -14,6 +14,7 @@
     "@codemirror/state": "^6.2.1",
     "@codemirror/theme-one-dark": "^6.1.2",
     "@codemirror/view": "^6.21.3",
+    "@supabase/supabase-js": "^2.89.0",
     "@types/react-syntax-highlighter": "^15.5.11",
     "browser-image-compression": "^2.0.2",
     "idb": "^8.0.3",
