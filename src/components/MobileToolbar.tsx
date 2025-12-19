@@ -243,6 +243,10 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
     ? '#f5f5f5'
     : theme === 'rainbow'
     ? '#1a0a2d' // Dark blue-purple
+    : theme === 'office-plain'
+    ? '#e8e8e8' // Neutral office gray
+    : theme === '70s-swirl'
+    ? '#e8d5c4' // Warm beige for 70s
     : '#fef1f2'
   const toolbarBorder = previewTheme.borderColor
   const toolbarText = theme === 'dark' 
@@ -251,6 +255,10 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
     ? '#212121'
     : theme === 'rainbow'
     ? '#00ff00' // Bright lime green
+    : theme === 'office-plain'
+    ? '#2c2c2c' // Professional dark gray
+    : theme === '70s-swirl'
+    ? '#5d4037' // Rich brown for 70s
     : '#2d3748'
   const toolbarHoverBg = theme === 'dark'
     ? '#2a2d2e'
@@ -258,6 +266,10 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
     ? '#e8e8e8'
     : theme === 'rainbow'
     ? '#2d1a4d' // Lighter purple
+    : theme === 'office-plain'
+    ? '#d0d0d0' // Subtle gray hover
+    : theme === '70s-swirl'
+    ? '#d5c4b4' // Warmer beige hover
     : '#fce7f3'
 
   if (!isVisible) return null

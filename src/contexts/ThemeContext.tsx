@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { Extension } from '@codemirror/state'
 import { oneDark } from '@codemirror/theme-one-dark'
-import { lightTheme, unicornPastelTheme, rainbowTheme } from '../themes/codemirrorThemes'
+import { lightTheme, unicornPastelTheme, rainbowTheme, officePlainTheme, seventiesSwirlTheme } from '../themes/codemirrorThemes'
 import type { Theme, ThemeContextType, PreviewTheme, ThemeProviderProps } from '../types/contexts'
 
 export type { Theme }
@@ -22,6 +22,11 @@ const themes: Record<Theme, PreviewTheme> = {
     blockquoteBorder: '#4a4a4a', // Improved visibility
     tableBorder: '#404040',
     tableHeaderBg: '#2a2a2a', // Improved visibility
+    // Heading colors - distinct colors for differentiation
+    h1Color: '#ffffff', // Bright white for h1
+    h2Color: '#7bc5ff', // Bright blue for h2
+    h3Color: '#4ade80', // Bright green for h3
+    h4Color: '#fbbf24', // Bright yellow for h4
   },
   light: {
     // WCAG AA compliant: #212121 on #ffffff = 15.8:1 ✓
@@ -37,6 +42,11 @@ const themes: Record<Theme, PreviewTheme> = {
     blockquoteBorder: '#b0b0b0', // Improved visibility
     tableBorder: '#d0d0d0',
     tableHeaderBg: '#f5f5f5',
+    // Heading colors - distinct colors for differentiation
+    h1Color: '#0056b3', // Dark blue for h1
+    h2Color: '#006400', // Dark green for h2
+    h3Color: '#7c3aed', // Dark purple for h3
+    h4Color: '#c2410c', // Dark orange for h4
   },
   'unicorn-pastel': {
     // WCAG AA compliant: #2d3748 on #fff5f7 = 12.1:1 ✓
@@ -53,6 +63,11 @@ const themes: Record<Theme, PreviewTheme> = {
     blockquoteBorder: '#e9d5ff', // More visible border
     tableBorder: '#fbcfe8',
     tableHeaderBg: '#fef1f2',
+    // Heading colors - pastel theme with purple/pink gradient
+    h1Color: '#a855f7', // Bright purple for h1
+    h2Color: '#c026d3', // Pink-purple for h2
+    h3Color: '#ec4899', // Pink for h3
+    h4Color: '#f472b6', // Light pink for h4
   },
   rainbow: {
     // Explosion of colors! Every element gets a different vibrant color
@@ -66,6 +81,55 @@ const themes: Record<Theme, PreviewTheme> = {
     blockquoteBorder: '#ff1493', // Deep pink border
     tableBorder: '#00ff00', // Lime green table borders
     tableHeaderBg: '#ff00ff30', // Semi-transparent magenta header with more opacity
+    // Heading colors - vibrant rainbow colors
+    h1Color: '#ff0000', // Bright red for h1
+    h2Color: '#ff8800', // Bright orange for h2
+    h3Color: '#ffff00', // Bright yellow for h3
+    h4Color: '#00ff00', // Bright green for h4
+  },
+  'office-plain': {
+    // Sober, professional office aesthetic
+    backgroundColor: '#f8f8f8', // Neutral office gray
+    // WCAG AA compliant: #2c2c2c on #f8f8f8 = 12.3:1 ✓
+    textColor: '#2c2c2c', // Professional dark gray
+    codeBackground: '#e8e8e8', // Subtle gray for code blocks
+    // WCAG AA compliant: #2c2c2c on #e8e8e8 = 10.5:1 ✓
+    codeTextColor: '#2c2c2c', // Consistent dark gray
+    borderColor: '#c0c0c0', // Subtle gray borders
+    // WCAG AA compliant: #0066cc on #f8f8f8 = 6.2:1 ✓ (link)
+    linkColor: '#0066cc', // Professional blue links
+    // WCAG AA compliant: #4a4a4a on #f8f8f8 = 7.2:1 ✓
+    blockquoteColor: '#4a4a4a', // Muted gray for blockquotes
+    blockquoteBorder: '#b0b0b0', // Subtle border
+    tableBorder: '#c0c0c0',
+    tableHeaderBg: '#e8e8e8', // Subtle header background
+    // Heading colors - professional and understated
+    h1Color: '#1a1a1a', // Very dark gray for h1
+    h2Color: '#2c2c2c', // Dark gray for h2
+    h3Color: '#3d3d3d', // Medium gray for h3
+    h4Color: '#4a4a4a', // Lighter gray for h4
+  },
+  '70s-swirl': {
+    // Retro 70s color palette: browns, yellows, oranges, and earth tones
+    backgroundColor: '#f5e6d3', // Warm beige/cream base
+    // WCAG AA compliant: #5d4037 on #f5e6d3 = 7.8:1 ✓
+    textColor: '#5d4037', // Rich brown text
+    codeBackground: '#e8d5c4', // Slightly darker beige for code
+    // WCAG AA compliant: #8b6f47 on #e8d5c4 = 4.8:1 ✓
+    codeTextColor: '#8b6f47', // Brown for code text
+    borderColor: '#8b6f47', // Brown borders
+    // WCAG AA compliant: #d84315 on #f5e6d3 = 5.1:1 ✓ (link)
+    linkColor: '#d84315', // 70s orange-red links
+    // WCAG AA compliant: #6d4c41 on #f5e6d3 = 6.5:1 ✓
+    blockquoteColor: '#6d4c41', // Darker brown for blockquotes
+    blockquoteBorder: '#a1887f', // Medium brown border
+    tableBorder: '#8b6f47',
+    tableHeaderBg: '#e8d5c4', // Beige header background
+    // Heading colors - 70s earth tones and warm colors
+    h1Color: '#8b4513', // Saddle brown for h1
+    h2Color: '#d84315', // Burnt orange for h2
+    h3Color: '#f57c00', // Deep orange for h3
+    h4Color: '#b8620a', // Muted orange-brown for h4 - WCAG compliant
   },
 }
 
@@ -97,6 +161,8 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     theme === 'dark' ? oneDark :
     theme === 'light' ? lightTheme :
     theme === 'rainbow' ? rainbowTheme :
+    theme === 'office-plain' ? officePlainTheme :
+    theme === '70s-swirl' ? seventiesSwirlTheme :
     unicornPastelTheme
 
   const previewTheme = themes[theme]

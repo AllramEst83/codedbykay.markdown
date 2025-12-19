@@ -1,5 +1,5 @@
 import { useCallback, useRef, memo } from 'react'
-import { useTheme } from '../contexts/ThemeContext'
+import { useTheme, type Theme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
 import { storeImage } from '../utils/imageStorage'
 import {
@@ -20,7 +20,9 @@ import {
   Sun,
   Sparkles,
   Palette,
-  Images
+  Images,
+  Briefcase,
+  Flower2
 } from 'lucide-react'
 import type { ToolbarProps } from '../types/components'
 import './Toolbar.css'
@@ -233,6 +235,10 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
     ? '#f5f5f5'
     : theme === 'rainbow'
     ? '#1a0a2d' // Dark blue-purple for rainbow
+    : theme === 'office-plain'
+    ? '#e8e8e8' // Neutral office gray
+    : theme === '70s-swirl'
+    ? '#e8d5c4' // Warm beige for 70s
     : '#fef1f2'
   const toolbarBorder = previewTheme.borderColor
   const toolbarText = theme === 'dark' 
@@ -241,6 +247,10 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
     ? '#212121' // WCAG AA: 15.8:1 on #f5f5f5
     : theme === 'rainbow'
     ? '#00ffff' // Bright cyan for rainbow
+    : theme === 'office-plain'
+    ? '#2c2c2c' // Professional dark gray
+    : theme === '70s-swirl'
+    ? '#5d4037' // Rich brown for 70s
     : '#2d3748' // WCAG AA: 12.1:1 on #fef1f2
   const toolbarHoverBg = theme === 'dark'
     ? '#2a2d2e'
@@ -248,6 +258,10 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
     ? '#e8e8e8'
     : theme === 'rainbow'
     ? '#2d1a4d' // Lighter purple with more saturation
+    : theme === 'office-plain'
+    ? '#d0d0d0' // Subtle gray hover
+    : theme === '70s-swirl'
+    ? '#d5c4b4' // Warmer beige hover
     : '#fce7f3'
   const toolbarSelectBg = theme === 'dark'
     ? '#2a2d2e'
@@ -255,6 +269,10 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
     ? '#ffffff'
     : theme === 'rainbow'
     ? '#3d2a5d' // Even lighter saturated purple
+    : theme === 'office-plain'
+    ? '#ffffff' // Clean white select
+    : theme === '70s-swirl'
+    ? '#f5e6d3' // Warm cream select
     : '#ffffff'
 
   return (
@@ -387,7 +405,7 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
         <select
           className="toolbar-select"
           value={theme}
-          onChange={(e) => setTheme(e.target.value as 'dark' | 'light' | 'unicorn-pastel' | 'rainbow')}
+          onChange={(e) => setTheme(e.target.value as Theme)}
           title="Theme"
           aria-label="Select Theme"
         >
@@ -395,12 +413,16 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
           <option value="light">Light</option>
           <option value="unicorn-pastel">Unicorn Pastel</option>
           <option value="rainbow">Rainbow</option>
+          <option value="office-plain">Office Plain</option>
+          <option value="70s-swirl">70s Swirl</option>
         </select>
         <div className="toolbar-theme-icon">
           {theme === 'dark' && <Moon size={14} />}
           {theme === 'light' && <Sun size={14} />}
           {theme === 'unicorn-pastel' && <Sparkles size={14} />}
           {theme === 'rainbow' && <Palette size={14} />}
+          {theme === 'office-plain' && <Briefcase size={14} />}
+          {theme === '70s-swirl' && <Flower2 size={14} />}
         </div>
       </div>
 

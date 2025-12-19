@@ -135,6 +135,10 @@ const PreviewComponent = ({ markdown, onScroll }: PreviewProps) => {
         '--preview-table-header-bg': previewTheme.tableHeaderBg,
         '--preview-code-bg': previewTheme.codeBackground,
         '--preview-code-color': previewTheme.codeTextColor,
+        '--preview-h1-color': previewTheme.h1Color,
+        '--preview-h2-color': previewTheme.h2Color,
+        '--preview-h3-color': previewTheme.h3Color,
+        '--preview-h4-color': previewTheme.h4Color,
       } as React.CSSProperties}
     >
       <div className="preview-content">

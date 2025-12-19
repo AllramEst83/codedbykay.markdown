@@ -29,18 +29,25 @@
 
 .preview-content h1 {
   font-size: 2em;
+  color: var(--preview-h1-color, inherit);
   border-bottom: 1px solid var(--preview-border-color, #eaecef);
   padding-bottom: 0.3em;
 }
 
 .preview-content h2 {
   font-size: 1.5em;
+  color: var(--preview-h2-color, inherit);
   border-bottom: 1px solid var(--preview-border-color, #eaecef);
   padding-bottom: 0.3em;
 }
 
 .preview-content h3 {
   font-size: 1.25em;
+  color: var(--preview-h3-color, inherit);
+}
+
+.preview-content h4 {
+  color: var(--preview-h4-color, inherit);
 }
 
 .preview-content p {

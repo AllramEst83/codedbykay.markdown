@@ -68,6 +68,10 @@ const TabBarComponent = () => {
     ? '#f5f5f5'
     : theme === 'rainbow'
     ? '#1a0a2d' // Dark blue-purple
+    : theme === 'office-plain'
+    ? '#e8e8e8' // Neutral office gray
+    : theme === '70s-swirl'
+    ? '#e8d5c4' // Warm beige for 70s
     : '#fef1f2'
   const tabBg = theme === 'dark'
     ? '#2d2d30'
@@ -75,6 +79,10 @@ const TabBarComponent = () => {
     ? '#e8e8e8'
     : theme === 'rainbow'
     ? '#2d1a4d' // Lighter purple
+    : theme === 'office-plain'
+    ? '#d0d0d0' // Subtle gray
+    : theme === '70s-swirl'
+    ? '#d5c4b4' // Warmer beige
     : '#ffffff'
   const tabActiveBg = theme === 'dark'
     ? '#1e1e1e'
@@ -82,6 +90,10 @@ const TabBarComponent = () => {
     ? '#ffffff'
     : theme === 'rainbow'
     ? '#0a0a1a' // Very dark for active tab
+    : theme === 'office-plain'
+    ? '#f8f8f8' // Clean white for active
+    : theme === '70s-swirl'
+    ? '#f5e6d3' // Warm cream for active
     : '#fff5f7'
   const tabText = theme === 'dark'
     ? '#e8e8e8'
@@ -89,6 +101,10 @@ const TabBarComponent = () => {
     ? '#212121'
     : theme === 'rainbow'
     ? '#ff69b4' // Hot pink
+    : theme === 'office-plain'
+    ? '#2c2c2c' // Professional dark gray
+    : theme === '70s-swirl'
+    ? '#5d4037' // Rich brown for 70s
     : '#2d3748'
   const tabBorder = previewTheme.borderColor
 

@@ -1,6 +1,6 @@
 import { Extension } from '@codemirror/state'
 
-export type Theme = 'dark' | 'light' | 'unicorn-pastel' | 'rainbow'
+export type Theme = 'dark' | 'light' | 'unicorn-pastel' | 'rainbow' | 'office-plain' | '70s-swirl'
 
 export interface PreviewTheme {
   backgroundColor: string
@@ -13,6 +13,10 @@ export interface PreviewTheme {
   blockquoteBorder: string
   tableBorder: string
   tableHeaderBg: string
+  h1Color: string
+  h2Color: string
+  h3Color: string
+  h4Color: string
 }
 
 export interface ThemeContextType {
