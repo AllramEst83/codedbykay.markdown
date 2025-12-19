@@ -430,16 +430,3 @@
   --image-manager-preview-bg: #fef1f2;
 }
 
-.image-manager-container[data-theme="rainbow"] {
-  --image-manager-bg: #1a0a2d;
-  --image-manager-text: #00ffff;
-  --image-manager-text-secondary: #ff69b4;
-  --image-manager-border: #ff00ff;
-  --image-manager-item-bg: #0a0a1a;
-  --image-manager-item-hover-border: #ff1493;
-  --image-manager-button-bg: #2d1a4d;
-  --image-manager-button-hover-bg: #3d2a5d;
-  --image-manager-border-hover: #ff1493;
-  --image-manager-preview-bg: #0a0a1a;
-}
-

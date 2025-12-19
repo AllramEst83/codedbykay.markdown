@@ -1,6 +1,6 @@
 import { Extension } from '@codemirror/state'
 
-export type Theme = 'dark' | 'light' | 'unicorn-pastel' | 'rainbow' | 'office-plain' | '70s-swirl'
+export type Theme = 'dark' | 'light' | 'unicorn-pastel' | 'office-plain' | '70s-swirl'
 
 export interface PreviewTheme {
   // Preview pane colors

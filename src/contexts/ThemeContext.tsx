@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { Extension } from '@codemirror/state'
 import { oneDark } from '@codemirror/theme-one-dark'
-import { lightTheme, unicornPastelTheme, rainbowTheme, officePlainTheme, seventiesSwirlTheme } from '../themes/codemirrorThemes'
+import { lightTheme, unicornPastelTheme, officePlainTheme, seventiesSwirlTheme } from '../themes/codemirrorThemes'
 import type { Theme, ThemeContextType, PreviewTheme, ThemeProviderProps } from '../types/contexts'
 
 export type { Theme }
@@ -298,7 +298,6 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   const editorTheme: Extension = 
     theme === 'dark' ? oneDark :
     theme === 'light' ? lightTheme :
-    theme === 'rainbow' ? rainbowTheme :
     theme === 'office-plain' ? officePlainTheme :
     theme === '70s-swirl' ? seventiesSwirlTheme :
     unicornPastelTheme

@@ -15,6 +15,7 @@ import {
   Link as LinkIcon,
   Image as ImageIcon,
   Images,
+  Heading,
 } from 'lucide-react'
 import type { MobileToolbarProps } from '../types/components'
 import './MobileToolbar.css'
@@ -105,6 +106,23 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
         editorRef!.wrapSelection('```\n', '\n```')
       } else {
         editorRef!.insertText('\n```\ncode\n```\n')
+      }
+    })
+  }, [handleAction, editorRef])
+
+  const insertHeading = useCallback((level: number) => {
+    handleAction(() => {
+      if (editorRef!.hasSelection()) {
+        const selectedText = editorRef!.getSelectedText()
+        // Split by lines and add heading prefix to each line
+        const lines = selectedText.split('\n')
+        const headingPrefix = '#'.repeat(level) + ' '
+        const formatted = lines.map(line => line.trim() ? `${headingPrefix}${line}` : line).join('\n')
+        editorRef!.replaceSelection(formatted)
+      } else {
+        // Insert heading example
+        const headingPrefix = '#'.repeat(level) + ' '
+        editorRef!.insertText(`${headingPrefix}Heading`)
       }
     })
   }, [handleAction, editorRef])
@@ -328,6 +346,31 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onCompre
         <div className="mobile-toolbar-separator" />
 
         <div className="mobile-toolbar-group">
+          <div className="mobile-toolbar-group mobile-toolbar-heading-group">
+            <select
+              className="mobile-toolbar-select"
+              onChange={(e) => {
+                const level = parseInt(e.target.value)
+                if (level > 0) {
+                  insertHeading(level)
+                  // Reset select to show placeholder
+                  e.target.value = ''
+                }
+              }}
+              title="Heading"
+              aria-label="Select Heading"
+              defaultValue=""
+            >
+              <option value="" disabled>Heading</option>
+              <option value="1">Heading 1</option>
+              <option value="2">Heading 2</option>
+              <option value="3">Heading 3</option>
+              <option value="4">Heading 4</option>
+            </select>
+            <div className="mobile-toolbar-heading-icon">
+              <Heading size={16} />
+            </div>
+          </div>
           <button 
             className="mobile-toolbar-button" 
             onClick={insertBlockquote}
