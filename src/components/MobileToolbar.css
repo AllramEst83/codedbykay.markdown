@@ -103,6 +103,23 @@
   z-index: 1;
 }
 
+.mobile-toolbar-theme-group {
+  position: relative;
+}
+
+.mobile-toolbar-theme-icon {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mobile-toolbar-text, #cccccc);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .mobile-toolbar-select {
   height: 40px;
   padding: 4px 28px 4px 8px;

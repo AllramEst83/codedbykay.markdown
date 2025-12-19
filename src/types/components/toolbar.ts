@@ -12,6 +12,8 @@ export interface MobileToolbarProps {
   editorRef: EditorRef | null
   isVisible: boolean
   keyboardOffset: number
+  onSave: () => void
+  onOpen: () => void
   onCompressingImageChange: (isCompressing: boolean) => void
   onOpenImageManager: () => void
 }

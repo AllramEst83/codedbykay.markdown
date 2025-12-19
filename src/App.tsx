@@ -292,6 +292,8 @@ function App() {
           editorRef={editorRef.current}
           isVisible={isKeyboardVisible && mobileViewMode === 'editor'}
           keyboardOffset={keyboardOffset}
+          onSave={handleSave}
+          onOpen={handleOpen}
           onCompressingImageChange={setIsCompressingImage}
           onOpenImageManager={() => setIsImageManagerOpen(true)}
         />
