@@ -15,7 +15,6 @@ interface MobileSelectProps {
   icon?: React.ReactNode
   label?: string
   placeholder?: string
-  showPlaceholder?: boolean
 }
 
 export const MobileSelect: React.FC<MobileSelectProps> = ({
@@ -25,7 +24,6 @@ export const MobileSelect: React.FC<MobileSelectProps> = ({
   icon,
   label,
   placeholder,
-  showPlaceholder = true
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
