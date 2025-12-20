@@ -140,7 +140,7 @@ const ModalComponent = ({ options, onConfirm, onCancel }: ModalComponentProps) =
             )}
             <button
               type="submit"
-              className="modal-button modal-button-confirm"
+              className={`modal-button ${options.variant === 'danger' ? 'modal-button-danger' : 'modal-button-confirm'}`}
             >
               {options.confirmText || (isPrompt ? 'OK' : isConfirm ? 'Confirm' : 'OK')}
             </button>
