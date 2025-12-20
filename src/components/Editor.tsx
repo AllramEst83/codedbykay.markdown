@@ -115,6 +115,12 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
       if (view) {
         redo(view)
       }
+    },
+    focus: () => {
+      const view = viewRef.current
+      if (view) {
+        view.focus()
+      }
     }
   }))
 

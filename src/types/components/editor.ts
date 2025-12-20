@@ -12,5 +12,6 @@ export interface EditorRef {
   hasSelection: () => boolean
   undo: () => void
   redo: () => void
+  focus: () => void
 }
 

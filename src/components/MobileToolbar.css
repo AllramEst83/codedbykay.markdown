@@ -18,6 +18,7 @@
   /* Ensure toolbar stays above keyboard */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
+  overflow: visible;
 }
 
 .mobile-toolbar-scroll {
@@ -25,7 +26,7 @@
   align-items: center;
   gap: 8px;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
@@ -103,6 +104,82 @@
   z-index: 1;
 }
 
+.mobile-toolbar-heading-dropdown {
+  position: relative;
+}
+
+.mobile-toolbar-heading-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.mobile-toolbar-heading-menu {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--mobile-toolbar-select-bg, #2a2d2e);
+  border: 1px solid var(--mobile-toolbar-border, #3e3e42);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  min-width: 180px;
+  max-width: 90vw;
+  overflow: hidden;
+  animation: slideUpMenu 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUpMenu {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.mobile-toolbar-heading-option {
+  display: block;
+  width: 100%;
+  padding: 16px 20px;
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid var(--mobile-toolbar-border, rgba(255, 255, 255, 0.1));
+  color: var(--mobile-toolbar-text, #cccccc);
+  text-align: left;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-toolbar-heading-option:last-child {
+  border-bottom: none;
+}
+
+.mobile-toolbar-heading-option:hover,
+.mobile-toolbar-heading-option:active {
+  background-color: var(--mobile-toolbar-hover-bg, #37373d);
+}
+
 .mobile-toolbar-theme-group {
   position: relative;
 }
@@ -137,6 +214,8 @@
   position: relative;
   flex-shrink: 0;
   min-width: 100px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-toolbar-select:hover {
