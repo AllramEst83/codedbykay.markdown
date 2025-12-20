@@ -32,6 +32,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
   const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
   const [showHeadingMenu, setShowHeadingMenu] = useState(false)
+  const [menuPosition, setMenuPosition] = useState({ bottom: 0, left: 0 })
   const headingButtonRef = useRef<HTMLButtonElement>(null)
   
   const handleAction = useCallback((action: () => void) => {
