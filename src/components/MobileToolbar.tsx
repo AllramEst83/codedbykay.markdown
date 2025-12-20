@@ -24,6 +24,7 @@ import {
   Briefcase,
   Flower2,
 } from 'lucide-react'
+import { MobileSelect } from './MobileSelect'
 import type { MobileToolbarProps } from '../types/components'
 import './MobileToolbar.css'
 
@@ -354,30 +355,22 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
         <div className="mobile-toolbar-separator" />
 
         <div className="mobile-toolbar-group">
-          <div className="mobile-toolbar-group mobile-toolbar-heading-group">
-            <select
-              className="mobile-toolbar-select"
-              onChange={(e) => {
-                const level = parseInt(e.target.value)
-                if (level > 0) {
-                  insertHeading(level)
-                  // Reset select to show placeholder
-                  e.target.value = ''
-                }
+                  <div className="mobile-toolbar-group mobile-toolbar-heading-group">
+            <MobileSelect
+              options={[
+                { label: 'Heading 1', value: '1' },
+                { label: 'Heading 2', value: '2' },
+                { label: 'Heading 3', value: '3' },
+                { label: 'Heading 4', value: '4' },
+              ]}
+              onChange={(value) => {
+                insertHeading(parseInt(value))
               }}
-              title="Heading"
-              aria-label="Select Heading"
-              defaultValue=""
-            >
-              <option value="" disabled>Heading</option>
-              <option value="1">Heading 1</option>
-              <option value="2">Heading 2</option>
-              <option value="3">Heading 3</option>
-              <option value="4">Heading 4</option>
-            </select>
-            <div className="mobile-toolbar-heading-icon">
-              <Heading size={16} />
-            </div>
+              icon={<Heading size={16} />}
+              label="Select Heading"
+              placeholder="Heading"
+              value="" // Always reset
+            />
           </div>
           <button 
             className="mobile-toolbar-button" 
@@ -420,27 +413,27 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
 
         <div className="mobile-toolbar-separator" />
 
-        <div className="mobile-toolbar-group mobile-toolbar-theme-group">
-          <select
-            className="mobile-toolbar-select"
+                <div className="mobile-toolbar-group mobile-toolbar-theme-group">
+          <MobileSelect
+            options={[
+              { label: 'Dark', value: 'dark', icon: <Moon size={16} /> },
+              { label: 'Light', value: 'light', icon: <Sun size={16} /> },
+              { label: 'Unicorn Pastel', value: 'unicorn-pastel', icon: <Sparkles size={16} /> },
+              { label: 'Office Plain', value: 'office-plain', icon: <Briefcase size={16} /> },
+              { label: '70s Swirl', value: '70s-swirl', icon: <Flower2 size={16} /> },
+            ]}
             value={theme}
-            onChange={(e) => setTheme(e.target.value as Theme)}
-            title="Theme"
-            aria-label="Select Theme"
-          >
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-            <option value="unicorn-pastel">Unicorn Pastel</option>
-            <option value="office-plain">Office Plain</option>
-            <option value="70s-swirl">70s Swirl</option>
-          </select>
-          <div className="mobile-toolbar-theme-icon">
-            {theme === 'dark' && <Moon size={16} />}
-            {theme === 'light' && <Sun size={16} />}
-            {theme === 'unicorn-pastel' && <Sparkles size={16} />}
-            {theme === 'office-plain' && <Briefcase size={16} />}
-            {theme === '70s-swirl' && <Flower2 size={16} />}
-          </div>
+            onChange={(value) => setTheme(value as Theme)}
+            label="Select Theme"
+            icon={
+              theme === 'dark' ? <Moon size={16} /> :
+              theme === 'light' ? <Sun size={16} /> :
+              theme === 'unicorn-pastel' ? <Sparkles size={16} /> :
+              theme === 'office-plain' ? <Briefcase size={16} /> :
+              theme === '70s-swirl' ? <Flower2 size={16} /> :
+              <Moon size={16} />
+            }
+          />
         </div>
 
         <div className="mobile-toolbar-separator" />
