@@ -242,23 +242,24 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
 
   // Calculate bottom position: when keyboard is visible, position toolbar above it
   // keyboardOffset represents the height of the keyboard
-  const bottomPosition = keyboardOffset > 0 ? `${keyboardOffset}px` : '0px'
+  // Use a fixed position relative to the visual viewport
+  const style = {
+    backgroundColor: previewTheme.mobileToolbarBg,
+    borderTopColor: previewTheme.borderColor,
+    color: previewTheme.mobileToolbarText,
+    bottom: keyboardOffset > 0 ? `${keyboardOffset}px` : '0px',
+    '--mobile-toolbar-text': previewTheme.mobileToolbarText,
+    '--mobile-toolbar-hover-bg': previewTheme.mobileToolbarHoverBg,
+    '--mobile-toolbar-select-bg': previewTheme.toolbarSelectBg,
+    '--mobile-toolbar-border': previewTheme.borderColor,
+  } as React.CSSProperties
 
   return (
     <>
       {isVisible && (
         <div 
           className="mobile-toolbar"
-          style={{
-            backgroundColor: previewTheme.mobileToolbarBg,
-            borderTopColor: previewTheme.borderColor,
-            color: previewTheme.mobileToolbarText,
-            bottom: bottomPosition,
-            '--mobile-toolbar-text': previewTheme.mobileToolbarText,
-            '--mobile-toolbar-hover-bg': previewTheme.mobileToolbarHoverBg,
-            '--mobile-toolbar-select-bg': previewTheme.toolbarSelectBg,
-            '--mobile-toolbar-border': previewTheme.borderColor,
-          } as React.CSSProperties}
+          style={style}
         >
           <div className="mobile-toolbar-scroll">
             <div className="mobile-toolbar-group">

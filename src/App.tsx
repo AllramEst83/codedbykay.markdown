@@ -26,6 +26,17 @@ function App() {
   const containerRef = useRef<HTMLDivElement>(null)
   const { isMobile, isKeyboardVisible, keyboardOffset } = useMobileKeyboard()
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
+  
+  // Calculate the bottom padding/margin needed for the editor container
+  // When keyboard is visible, we don't need extra padding as the viewport resizes
+  // The toolbar will be positioned relative to the viewport
+  const editorContainerStyle = useMemo(() => {
+    if (!isMobile) return {}
+    
+    return {
+      paddingBottom: isKeyboardVisible ? '60px' : '0' // Add space for toolbar when keyboard is visible
+    }
+  }, [isMobile, isKeyboardVisible])
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [isCompressingImage, setIsCompressingImage] = useState(false)
   const [isImageManagerOpen, setIsImageManagerOpen] = useState(false)
@@ -230,6 +241,7 @@ function App() {
         className="editor-container"
         style={{
           borderTopColor: previewTheme.borderColor,
+          ...editorContainerStyle
         }}
       >
         {showEditor && (
