@@ -23,6 +23,8 @@ import {
   Sparkles,
   Briefcase,
   Flower2,
+  Indent,
+  Outdent
 } from 'lucide-react'
 import { MobileSelect } from './MobileSelect'
 import type { MobileToolbarProps } from '../types/components'
@@ -93,6 +95,14 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
         editorRef!.insertText('1. List item')
       }
     })
+  }, [handleAction, editorRef])
+
+  const handleIndentLeft = useCallback(() => {
+    handleAction(() => editorRef!.indentLeft())
+  }, [handleAction, editorRef])
+
+  const handleIndentRight = useCallback(() => {
+    handleAction(() => editorRef!.indentRight())
   }, [handleAction, editorRef])
 
   const insertBlockquote = useCallback(() => {
@@ -327,6 +337,27 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
                 aria-label="Numbered List"
               >
                 <ListOrdered size={18} />
+              </button>
+            </div>
+
+            <div className="mobile-toolbar-separator" />
+
+            <div className="mobile-toolbar-group">
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={handleIndentLeft}
+                title="Indent Left"
+                aria-label="Indent Left"
+              >
+                <Outdent size={18} />
+              </button>
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={handleIndentRight}
+                title="Indent Right"
+                aria-label="Indent Right"
+              >
+                <Indent size={18} />
               </button>
             </div>
 

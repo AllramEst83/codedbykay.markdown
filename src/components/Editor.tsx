@@ -1,7 +1,7 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap, undo, redo } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, undo, redo, indentMore, indentLess } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { useTheme } from '../contexts/ThemeContext'
 import type { EditorProps, EditorRef } from '../types/components'
@@ -114,6 +114,20 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
       const view = viewRef.current
       if (view) {
         redo(view)
+      }
+    },
+    indentLeft: () => {
+      const view = viewRef.current
+      if (view) {
+        indentLess(view)
+        view.focus()
+      }
+    },
+    indentRight: () => {
+      const view = viewRef.current
+      if (view) {
+        indentMore(view)
+        view.focus()
       }
     }
   }))

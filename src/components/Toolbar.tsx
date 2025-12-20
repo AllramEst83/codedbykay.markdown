@@ -22,7 +22,9 @@ import {
   Images,
   Briefcase,
   Flower2,
-  Heading
+  Heading,
+  Indent,
+  Outdent
 } from 'lucide-react'
 import type { ToolbarProps } from '../types/components'
 import './Toolbar.css'
@@ -96,6 +98,14 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
         editorRef!.insertText('1. List item')
       }
     })
+  }, [handleAction, editorRef])
+
+  const handleIndentLeft = useCallback(() => {
+    handleAction(() => editorRef!.indentLeft())
+  }, [handleAction, editorRef])
+
+  const handleIndentRight = useCallback(() => {
+    handleAction(() => editorRef!.indentRight())
   }, [handleAction, editorRef])
 
   const insertBlockquote = useCallback(() => {
@@ -324,6 +334,27 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
           aria-label="Numbered List"
         >
           <ListOrdered size={16} />
+        </button>
+      </div>
+
+      <div className="toolbar-separator" />
+
+      <div className="toolbar-group">
+        <button 
+          className="toolbar-button" 
+          onClick={handleIndentLeft}
+          title="Indent Left"
+          aria-label="Indent Left"
+        >
+          <Outdent size={16} />
+        </button>
+        <button 
+          className="toolbar-button" 
+          onClick={handleIndentRight}
+          title="Indent Right"
+          aria-label="Indent Right"
+        >
+          <Indent size={16} />
         </button>
       </div>
 
