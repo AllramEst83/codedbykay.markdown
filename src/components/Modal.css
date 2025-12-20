@@ -167,6 +167,27 @@
   box-shadow: 0 0 0 2px var(--modal-focus-ring, rgba(0, 122, 204, 0.3));
 }
 
+.modal-button-danger {
+  background-color: var(--modal-button-danger-bg, #dc3545);
+  color: var(--modal-button-danger-text, #ffffff);
+  border-color: var(--modal-button-danger-bg, #dc3545);
+}
+
+.modal-button-danger:hover {
+  background-color: var(--modal-button-danger-hover-bg, #bb2d3b);
+  border-color: var(--modal-button-danger-hover-bg, #bb2d3b);
+  transform: translateY(-1px);
+}
+
+.modal-button-danger:active {
+  transform: translateY(0);
+  opacity: 0.9;
+}
+
+.modal-button-danger:focus {
+  box-shadow: 0 0 0 2px var(--modal-focus-ring-danger, rgba(220, 53, 69, 0.3));
+}
+
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .modal-backdrop {
@@ -226,6 +247,10 @@
   --modal-button-confirm-hover-bg: #004494;
   --modal-button-confirm-text: #ffffff;
   --modal-focus-ring: rgba(0, 86, 179, 0.3);
+  --modal-button-danger-bg: #dc3545;
+  --modal-button-danger-hover-bg: #bb2d3b;
+  --modal-button-danger-text: #ffffff;
+  --modal-focus-ring-danger: rgba(220, 53, 69, 0.3);
 }
 
 .modal-container[data-theme="dark"] {
@@ -244,6 +269,10 @@
   --modal-button-confirm-hover-bg: #005a9e;
   --modal-button-confirm-text: #ffffff;
   --modal-focus-ring: rgba(0, 122, 204, 0.3);
+  --modal-button-danger-bg: #d32f2f;
+  --modal-button-danger-hover-bg: #b71c1c;
+  --modal-button-danger-text: #ffffff;
+  --modal-focus-ring-danger: rgba(211, 47, 47, 0.3);
 }
 
 .modal-container[data-theme="unicorn-pastel"] {

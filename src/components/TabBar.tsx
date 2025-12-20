@@ -97,6 +97,22 @@ Cloud syncing may be available in the future.`,
     })
   }, [showModal])
 
+  const handleCloseTab = async (e: React.MouseEvent, tabId: string, tabTitle: string) => {
+    e.stopPropagation()
+    
+    const result = await showModal({
+      type: 'confirm',
+      title: 'Delete Tab',
+      message: `Are you sure you want to delete "${tabTitle}"?`,
+      confirmText: 'Delete',
+      variant: 'danger'
+    })
+
+    if (result) {
+      closeTab(tabId)
+    }
+  }
+
   return (
     <div 
       className="tab-bar"
@@ -135,10 +151,7 @@ Cloud syncing may be available in the future.`,
             )}
             <button
               className="tab-close"
-              onClick={(e) => {
-                e.stopPropagation()
-                closeTab(tab.id)
-              }}
+              onClick={(e) => handleCloseTab(e, tab.id, tab.title)}
               aria-label="Close tab"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">

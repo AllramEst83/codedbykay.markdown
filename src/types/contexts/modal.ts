@@ -6,6 +6,7 @@ export interface ModalOptions {
   confirmText?: string
   cancelText?: string
   type?: 'prompt' | 'alert' | 'confirm'
+  variant?: 'primary' | 'danger'
 }
 
 export interface ModalContextType {
