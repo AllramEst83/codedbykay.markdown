@@ -230,6 +230,10 @@ function App() {
         className="editor-container"
         style={{
           borderTopColor: previewTheme.borderColor,
+          // On mobile, adjust height to account for keyboard and toolbar
+          ...(isMobile && isKeyboardVisible ? {
+            height: `calc(100% - ${keyboardOffset}px)`,
+          } : {}),
         }}
       >
         {showEditor && (

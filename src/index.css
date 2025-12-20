@@ -19,7 +19,9 @@ body {
 
 #root {
   height: 100vh;
+  height: 100dvh; /* Use dynamic viewport height for mobile */
   width: 100vw;
+  width: 100dvw; /* Use dynamic viewport width for mobile */
 }
 
 code {
