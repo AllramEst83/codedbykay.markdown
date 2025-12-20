@@ -32,7 +32,6 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
   const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
   const [showHeadingMenu, setShowHeadingMenu] = useState(false)
-  const [menuPosition, setMenuPosition] = useState({ bottom: 0, left: 0 })
   const headingButtonRef = useRef<HTMLButtonElement>(null)
   
   const handleAction = useCallback((action: () => void) => {
@@ -142,29 +141,19 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
     setShowHeadingMenu(prev => !prev)
   }, [])
 
-  // Close heading menu when clicking outside
+  // Close heading menu on escape key
   useEffect(() => {
     if (!showHeadingMenu) return
 
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (headingButtonRef.current && !headingButtonRef.current.contains(event.target as Node)) {
-        const menu = document.querySelector('.mobile-toolbar-heading-menu')
-        if (menu && !menu.contains(event.target as Node)) {
-          setShowHeadingMenu(false)
-        }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowHeadingMenu(false)
       }
     }
 
-    // Add a small delay to prevent immediate closure when opening
-    const timeoutId = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('touchstart', handleClickOutside)
-    }, 100)
-
+    document.addEventListener('keydown', handleEscape)
     return () => {
-      clearTimeout(timeoutId)
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('touchstart', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
     }
   }, [showHeadingMenu])
 
@@ -302,19 +291,20 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
   const bottomPosition = keyboardOffset > 0 ? `${keyboardOffset}px` : '0px'
 
   return (
-    <div 
-      className="mobile-toolbar"
-      style={{
-        backgroundColor: previewTheme.mobileToolbarBg,
-        borderTopColor: previewTheme.borderColor,
-        color: previewTheme.mobileToolbarText,
-        bottom: bottomPosition,
-        '--mobile-toolbar-text': previewTheme.mobileToolbarText,
-        '--mobile-toolbar-hover-bg': previewTheme.mobileToolbarHoverBg,
-        '--mobile-toolbar-select-bg': previewTheme.toolbarSelectBg,
-        '--mobile-toolbar-border': previewTheme.borderColor,
-      } as React.CSSProperties}
-    >
+    <>
+      <div 
+        className="mobile-toolbar"
+        style={{
+          backgroundColor: previewTheme.mobileToolbarBg,
+          borderTopColor: previewTheme.borderColor,
+          color: previewTheme.mobileToolbarText,
+          bottom: bottomPosition,
+          '--mobile-toolbar-text': previewTheme.mobileToolbarText,
+          '--mobile-toolbar-hover-bg': previewTheme.mobileToolbarHoverBg,
+          '--mobile-toolbar-select-bg': previewTheme.toolbarSelectBg,
+          '--mobile-toolbar-border': previewTheme.borderColor,
+        } as React.CSSProperties}
+      >
       <div className="mobile-toolbar-scroll">
         <div className="mobile-toolbar-group">
           <button 
@@ -398,38 +388,6 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
             >
               <Heading size={18} />
             </button>
-            {showHeadingMenu && (
-              <div className="mobile-toolbar-heading-menu">
-                <button 
-                  className="mobile-toolbar-heading-option"
-                  onClick={() => insertHeading(1)}
-                  type="button"
-                >
-                  Heading 1
-                </button>
-                <button 
-                  className="mobile-toolbar-heading-option"
-                  onClick={() => insertHeading(2)}
-                  type="button"
-                >
-                  Heading 2
-                </button>
-                <button 
-                  className="mobile-toolbar-heading-option"
-                  onClick={() => insertHeading(3)}
-                  type="button"
-                >
-                  Heading 3
-                </button>
-                <button 
-                  className="mobile-toolbar-heading-option"
-                  onClick={() => insertHeading(4)}
-                  type="button"
-                >
-                  Heading 4
-                </button>
-              </div>
-            )}
           </div>
           <button 
             className="mobile-toolbar-button" 
@@ -525,16 +483,66 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
         </div>
       </div>
 
-      {/* Hidden file input for image selection */}
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleImageSelect}
-        style={{ display: 'none' }}
-        aria-hidden="true"
-      />
-    </div>
+        {/* Hidden file input for image selection */}
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageSelect}
+          style={{ display: 'none' }}
+          aria-hidden="true"
+        />
+      </div>
+
+      {/* Heading menu - rendered outside toolbar to avoid overflow clipping */}
+      {showHeadingMenu && (
+        <>
+          <div 
+            className="mobile-toolbar-heading-backdrop"
+            onClick={() => setShowHeadingMenu(false)}
+          />
+          <div 
+            className="mobile-toolbar-heading-menu"
+            style={{
+              bottom: `calc(${bottomPosition} + 68px)`,
+              '--mobile-toolbar-select-bg': previewTheme.toolbarSelectBg,
+              '--mobile-toolbar-border': previewTheme.borderColor,
+              '--mobile-toolbar-text': previewTheme.mobileToolbarText,
+              '--mobile-toolbar-hover-bg': previewTheme.mobileToolbarHoverBg,
+            } as React.CSSProperties}
+          >
+            <button 
+              className="mobile-toolbar-heading-option"
+              onClick={() => insertHeading(1)}
+              type="button"
+            >
+              Heading 1
+            </button>
+            <button 
+              className="mobile-toolbar-heading-option"
+              onClick={() => insertHeading(2)}
+              type="button"
+            >
+              Heading 2
+            </button>
+            <button 
+              className="mobile-toolbar-heading-option"
+              onClick={() => insertHeading(3)}
+              type="button"
+            >
+              Heading 3
+            </button>
+            <button 
+              className="mobile-toolbar-heading-option"
+              onClick={() => insertHeading(4)}
+              type="button"
+            >
+              Heading 4
+            </button>
+          </div>
+        </>
+      )}
+    </>
   )
 }
 
