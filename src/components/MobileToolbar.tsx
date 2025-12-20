@@ -1,4 +1,4 @@
-import { useCallback, useRef, memo } from 'react'
+import { useCallback, useRef, memo, useState, useEffect } from 'react'
 import { useTheme, type Theme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
 import { storeImage } from '../utils/imageStorage'
@@ -31,6 +31,8 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
   const { theme, setTheme, previewTheme } = useTheme()
   const { showModal } = useModal()
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const [showHeadingMenu, setShowHeadingMenu] = useState(false)
+  const headingButtonRef = useRef<HTMLButtonElement>(null)
   
   const handleAction = useCallback((action: () => void) => {
     if (editorRef) {
@@ -132,7 +134,38 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
         editorRef!.insertText(`${headingPrefix}Heading`)
       }
     })
+    setShowHeadingMenu(false)
   }, [handleAction, editorRef])
+
+  const toggleHeadingMenu = useCallback(() => {
+    setShowHeadingMenu(prev => !prev)
+  }, [])
+
+  // Close heading menu when clicking outside
+  useEffect(() => {
+    if (!showHeadingMenu) return
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (headingButtonRef.current && !headingButtonRef.current.contains(event.target as Node)) {
+        const menu = document.querySelector('.mobile-toolbar-heading-menu')
+        if (menu && !menu.contains(event.target as Node)) {
+          setShowHeadingMenu(false)
+        }
+      }
+    }
+
+    // Add a small delay to prevent immediate closure when opening
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside)
+    }, 100)
+
+    return () => {
+      clearTimeout(timeoutId)
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
+  }, [showHeadingMenu])
 
   const insertLink = useCallback(async () => {
     const selectedText = editorRef!.getSelectedText()
@@ -354,47 +387,48 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
         <div className="mobile-toolbar-separator" />
 
         <div className="mobile-toolbar-group">
-          <div className="mobile-toolbar-group mobile-toolbar-heading-group">
-            <select
-              className="mobile-toolbar-select"
-              onMouseDown={(e) => {
-                // Prevent the default mousedown behavior that would blur the editor
-                // This keeps the keyboard visible on mobile while still allowing the select to open
-                e.preventDefault()
-              }}
-              onTouchStart={(e) => {
-                // On touch devices, prevent blur while allowing the native picker to open
-                e.preventDefault()
-                const select = e.currentTarget as HTMLSelectElement
-                // Use a small delay to ensure touch is processed
-                requestAnimationFrame(() => {
-                  select.focus()
-                  select.click()
-                })
-              }}
-              onChange={(e) => {
-                const level = parseInt(e.target.value)
-                if (level > 0) {
-                  insertHeading(level)
-                  // Reset select to show placeholder
-                  e.target.value = ''
-                }
-                // Refocus the editor after selection to restore keyboard
-                editorRef?.focus?.()
-              }}
+          <div className="mobile-toolbar-heading-dropdown">
+            <button 
+              ref={headingButtonRef}
+              className="mobile-toolbar-button" 
+              onClick={toggleHeadingMenu}
               title="Heading"
-              aria-label="Select Heading"
-              defaultValue=""
+              aria-label="Insert Heading"
             >
-              <option value="" disabled>Heading</option>
-              <option value="1">Heading 1</option>
-              <option value="2">Heading 2</option>
-              <option value="3">Heading 3</option>
-              <option value="4">Heading 4</option>
-            </select>
-            <div className="mobile-toolbar-heading-icon">
-              <Heading size={16} />
-            </div>
+              <Heading size={18} />
+            </button>
+            {showHeadingMenu && (
+              <div className="mobile-toolbar-heading-menu">
+                <button 
+                  className="mobile-toolbar-heading-option"
+                  onClick={() => insertHeading(1)}
+                  type="button"
+                >
+                  Heading 1
+                </button>
+                <button 
+                  className="mobile-toolbar-heading-option"
+                  onClick={() => insertHeading(2)}
+                  type="button"
+                >
+                  Heading 2
+                </button>
+                <button 
+                  className="mobile-toolbar-heading-option"
+                  onClick={() => insertHeading(3)}
+                  type="button"
+                >
+                  Heading 3
+                </button>
+                <button 
+                  className="mobile-toolbar-heading-option"
+                  onClick={() => insertHeading(4)}
+                  type="button"
+                >
+                  Heading 4
+                </button>
+              </div>
+            )}
           </div>
           <button 
             className="mobile-toolbar-button" 
