@@ -120,12 +120,14 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
       const view = viewRef.current
       if (view) {
         indentLess(view)
+        view.focus()
       }
     },
     indentRight: () => {
       const view = viewRef.current
       if (view) {
         indentMore(view)
+        view.focus()
       }
     }
   }))
