@@ -176,6 +176,9 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
     const file = event.target.files?.[0]
     if (!file) return
 
+    // Reset input immediately to allow selecting the same file again
+    event.target.value = ''
+
     // Check if editor is available
     if (!editorRef) {
       await showModal({
@@ -187,46 +190,27 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
       return
     }
 
-    // Store file reference before resetting input
-    const selectedText = editorRef.getSelectedText()
-    const fileName = file.name.replace(/\.[^/.]+$/, '')
-    
-    // Reset input immediately to allow selecting the same file again
-    event.target.value = ''
-
     onCompressingImageChange(true)
     try {
-      // Use requestAnimationFrame to ensure file picker is closed before processing
-      // This is especially important on mobile devices
-      await new Promise(resolve => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setTimeout(resolve, 150) // Additional delay for mobile file picker
-          })
-        })
-      })
+      const selectedText = editorRef.getSelectedText()
       
+      // Store image and get data URL (this compresses the image)
       const dataUrl = await storeImage(file)
       
       onCompressingImageChange(false)
       
-      // Ensure UI is ready before showing modal
-      await new Promise(resolve => {
-        requestAnimationFrame(() => {
-          setTimeout(resolve, 50)
-        })
-      })
-      
+      // Prompt for alt text
       const alt = await showModal({
         type: 'prompt',
         title: 'Insert Image',
         message: 'Enter alt text for the image:',
-        defaultValue: selectedText || fileName,
+        defaultValue: selectedText || file.name.replace(/\.[^/.]+$/, ''),
         placeholder: 'Image description',
         confirmText: 'Insert',
         cancelText: 'Cancel'
       })
       
+      // Insert markdown with stored image
       if (alt !== null && editorRef) {
         handleAction(() => {
           if (selectedText) {
@@ -239,12 +223,6 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
     } catch (error) {
       onCompressingImageChange(false)
       console.error('Failed to insert image:', error)
-      // Ensure UI is ready before showing error modal
-      await new Promise(resolve => {
-        requestAnimationFrame(() => {
-          setTimeout(resolve, 100)
-        })
-      })
       await showModal({
         type: 'alert',
         title: 'Error',
