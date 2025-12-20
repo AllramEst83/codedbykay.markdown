@@ -240,209 +240,211 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
     handleAction(() => editorRef!.redo())
   }, [handleAction, editorRef])
 
-  if (!isVisible) return null
-
   // Calculate bottom position: when keyboard is visible, position toolbar above it
   // keyboardOffset represents the height of the keyboard
   const bottomPosition = keyboardOffset > 0 ? `${keyboardOffset}px` : '0px'
 
   return (
-    <div 
-      className="mobile-toolbar"
-      style={{
-        backgroundColor: previewTheme.mobileToolbarBg,
-        borderTopColor: previewTheme.borderColor,
-        color: previewTheme.mobileToolbarText,
-        bottom: bottomPosition,
-        '--mobile-toolbar-text': previewTheme.mobileToolbarText,
-        '--mobile-toolbar-hover-bg': previewTheme.mobileToolbarHoverBg,
-        '--mobile-toolbar-select-bg': previewTheme.toolbarSelectBg,
-        '--mobile-toolbar-border': previewTheme.borderColor,
-      } as React.CSSProperties}
-    >
-      <div className="mobile-toolbar-scroll">
-        <div className="mobile-toolbar-group">
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={handleUndo}
-            title="Undo"
-            aria-label="Undo"
-          >
-            <Undo2 size={18} />
-          </button>
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={handleRedo}
-            title="Redo"
-            aria-label="Redo"
-          >
-            <Redo2 size={18} />
-          </button>
-        </div>
+    <>
+      {isVisible && (
+        <div 
+          className="mobile-toolbar"
+          style={{
+            backgroundColor: previewTheme.mobileToolbarBg,
+            borderTopColor: previewTheme.borderColor,
+            color: previewTheme.mobileToolbarText,
+            bottom: bottomPosition,
+            '--mobile-toolbar-text': previewTheme.mobileToolbarText,
+            '--mobile-toolbar-hover-bg': previewTheme.mobileToolbarHoverBg,
+            '--mobile-toolbar-select-bg': previewTheme.toolbarSelectBg,
+            '--mobile-toolbar-border': previewTheme.borderColor,
+          } as React.CSSProperties}
+        >
+          <div className="mobile-toolbar-scroll">
+            <div className="mobile-toolbar-group">
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={handleUndo}
+                title="Undo"
+                aria-label="Undo"
+              >
+                <Undo2 size={18} />
+              </button>
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={handleRedo}
+                title="Redo"
+                aria-label="Redo"
+              >
+                <Redo2 size={18} />
+              </button>
+            </div>
 
-        <div className="mobile-toolbar-separator" />
+            <div className="mobile-toolbar-separator" />
 
-        <div className="mobile-toolbar-group">
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={insertBold}
-            title="Bold"
-            aria-label="Bold"
-          >
-            <Bold size={18} />
-          </button>
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={insertItalic}
-            title="Italic"
-            aria-label="Italic"
-          >
-            <Italic size={18} />
-          </button>
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={insertStrikethrough}
-            title="Strikethrough"
-            aria-label="Strikethrough"
-          >
-            <Strikethrough size={18} />
-          </button>
-        </div>
+            <div className="mobile-toolbar-group">
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={insertBold}
+                title="Bold"
+                aria-label="Bold"
+              >
+                <Bold size={18} />
+              </button>
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={insertItalic}
+                title="Italic"
+                aria-label="Italic"
+              >
+                <Italic size={18} />
+              </button>
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={insertStrikethrough}
+                title="Strikethrough"
+                aria-label="Strikethrough"
+              >
+                <Strikethrough size={18} />
+              </button>
+            </div>
 
-        <div className="mobile-toolbar-separator" />
+            <div className="mobile-toolbar-separator" />
 
-        <div className="mobile-toolbar-group">
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={insertBulletList}
-            title="Bullet List"
-            aria-label="Bullet List"
-          >
-            <List size={18} />
-          </button>
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={insertNumberedList}
-            title="Numbered List"
-            aria-label="Numbered List"
-          >
-            <ListOrdered size={18} />
-          </button>
-        </div>
+            <div className="mobile-toolbar-group">
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={insertBulletList}
+                title="Bullet List"
+                aria-label="Bullet List"
+              >
+                <List size={18} />
+              </button>
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={insertNumberedList}
+                title="Numbered List"
+                aria-label="Numbered List"
+              >
+                <ListOrdered size={18} />
+              </button>
+            </div>
 
-        <div className="mobile-toolbar-separator" />
+            <div className="mobile-toolbar-separator" />
 
-        <div className="mobile-toolbar-group">
-                  <div className="mobile-toolbar-group mobile-toolbar-heading-group">
-            <MobileSelect
-              options={[
-                { label: 'Heading 1', value: '1' },
-                { label: 'Heading 2', value: '2' },
-                { label: 'Heading 3', value: '3' },
-                { label: 'Heading 4', value: '4' },
-              ]}
-              onChange={(value) => {
-                insertHeading(parseInt(value))
-              }}
-              icon={<Heading size={16} />}
-              label="Select Heading"
-              placeholder="Heading"
-              value="" // Always reset
-            />
+            <div className="mobile-toolbar-group">
+              <div className="mobile-toolbar-group mobile-toolbar-heading-group">
+                <MobileSelect
+                  options={[
+                    { label: 'Heading 1', value: '1' },
+                    { label: 'Heading 2', value: '2' },
+                    { label: 'Heading 3', value: '3' },
+                    { label: 'Heading 4', value: '4' },
+                  ]}
+                  onChange={(value) => {
+                    insertHeading(parseInt(value))
+                  }}
+                  icon={<Heading size={16} />}
+                  label="Select Heading"
+                  placeholder="Heading"
+                  value="" // Always reset
+                />
+              </div>
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={insertBlockquote}
+                title="Blockquote"
+                aria-label="Blockquote"
+              >
+                <Quote size={18} />
+              </button>
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={insertCodeBlock}
+                title="Code Block"
+                aria-label="Code Block"
+              >
+                <Code size={18} />
+              </button>
+            </div>
+
+            <div className="mobile-toolbar-separator" />
+
+            <div className="mobile-toolbar-group">
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={insertLink}
+                title="Insert Link"
+                aria-label="Insert Link"
+              >
+                <LinkIcon size={18} />
+              </button>
+              <button
+                className="mobile-toolbar-button"
+                onClick={insertImage}
+                title="Insert Image"
+                aria-label="Insert Image"
+              >
+                <ImageIcon size={18} />
+              </button>
+            </div>
+
+            <div className="mobile-toolbar-separator" />
+
+            <div className="mobile-toolbar-group mobile-toolbar-theme-group">
+              <MobileSelect
+                options={[
+                  { label: 'Dark', value: 'dark', icon: <Moon size={16} /> },
+                  { label: 'Light', value: 'light', icon: <Sun size={16} /> },
+                  { label: 'Unicorn Pastel', value: 'unicorn-pastel', icon: <Sparkles size={16} /> },
+                  { label: 'Office Plain', value: 'office-plain', icon: <Briefcase size={16} /> },
+                  { label: '70s Swirl', value: '70s-swirl', icon: <Flower2 size={16} /> },
+                ]}
+                value={theme}
+                onChange={(value) => setTheme(value as Theme)}
+                label="Select Theme"
+                icon={
+                  theme === 'dark' ? <Moon size={16} /> :
+                  theme === 'light' ? <Sun size={16} /> :
+                  theme === 'unicorn-pastel' ? <Sparkles size={16} /> :
+                  theme === 'office-plain' ? <Briefcase size={16} /> :
+                  theme === '70s-swirl' ? <Flower2 size={16} /> :
+                  <Moon size={16} />
+                }
+              />
+            </div>
+
+            <div className="mobile-toolbar-separator" />
+
+            <div className="mobile-toolbar-group">
+              <button
+                className="mobile-toolbar-button"
+                onClick={onOpenImageManager}
+                title="Manage Images"
+                aria-label="Manage Images"
+              >
+                <Images size={18} />
+              </button>
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={onOpen}
+                title="Open File"
+                aria-label="Open File"
+              >
+                <FolderOpen size={18} />
+              </button>
+              <button 
+                className="mobile-toolbar-button" 
+                onClick={onSave}
+                title="Save File"
+                aria-label="Save File"
+              >
+                <Save size={18} />
+              </button>
+            </div>
           </div>
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={insertBlockquote}
-            title="Blockquote"
-            aria-label="Blockquote"
-          >
-            <Quote size={18} />
-          </button>
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={insertCodeBlock}
-            title="Code Block"
-            aria-label="Code Block"
-          >
-            <Code size={18} />
-          </button>
         </div>
-
-        <div className="mobile-toolbar-separator" />
-
-        <div className="mobile-toolbar-group">
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={insertLink}
-            title="Insert Link"
-            aria-label="Insert Link"
-          >
-            <LinkIcon size={18} />
-          </button>
-          <button
-            className="mobile-toolbar-button"
-            onClick={insertImage}
-            title="Insert Image"
-            aria-label="Insert Image"
-          >
-            <ImageIcon size={18} />
-          </button>
-        </div>
-
-        <div className="mobile-toolbar-separator" />
-
-                <div className="mobile-toolbar-group mobile-toolbar-theme-group">
-          <MobileSelect
-            options={[
-              { label: 'Dark', value: 'dark', icon: <Moon size={16} /> },
-              { label: 'Light', value: 'light', icon: <Sun size={16} /> },
-              { label: 'Unicorn Pastel', value: 'unicorn-pastel', icon: <Sparkles size={16} /> },
-              { label: 'Office Plain', value: 'office-plain', icon: <Briefcase size={16} /> },
-              { label: '70s Swirl', value: '70s-swirl', icon: <Flower2 size={16} /> },
-            ]}
-            value={theme}
-            onChange={(value) => setTheme(value as Theme)}
-            label="Select Theme"
-            icon={
-              theme === 'dark' ? <Moon size={16} /> :
-              theme === 'light' ? <Sun size={16} /> :
-              theme === 'unicorn-pastel' ? <Sparkles size={16} /> :
-              theme === 'office-plain' ? <Briefcase size={16} /> :
-              theme === '70s-swirl' ? <Flower2 size={16} /> :
-              <Moon size={16} />
-            }
-          />
-        </div>
-
-        <div className="mobile-toolbar-separator" />
-
-        <div className="mobile-toolbar-group">
-          <button
-            className="mobile-toolbar-button"
-            onClick={onOpenImageManager}
-            title="Manage Images"
-            aria-label="Manage Images"
-          >
-            <Images size={18} />
-          </button>
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={onOpen}
-            title="Open File"
-            aria-label="Open File"
-          >
-            <FolderOpen size={18} />
-          </button>
-          <button 
-            className="mobile-toolbar-button" 
-            onClick={onSave}
-            title="Save File"
-            aria-label="Save File"
-          >
-            <Save size={18} />
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Hidden file input for image selection */}
       <input
@@ -453,7 +455,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
         style={{ display: 'none' }}
         aria-hidden="true"
       />
-    </div>
+    </>
   )
 }
 
