@@ -185,6 +185,12 @@ function App() {
   const showEditor = !isMobile || mobileViewMode === 'editor'
   const showPreview = !isMobile || mobileViewMode === 'preview'
 
+  // Calculate bottom padding for editor container to prevent content from being hidden behind mobile toolbar
+  // Toolbar height is approx 56px (40px buttons + 16px vertical padding)
+  const isToolbarVisible = isMobile && isKeyboardVisible && mobileViewMode === 'editor'
+  const toolbarHeight = 56
+  const containerPaddingBottom = isToolbarVisible ? keyboardOffset + toolbarHeight : 0
+
   if (isInitialLoading) {
     return (
       <div 
@@ -230,6 +236,7 @@ function App() {
         className="editor-container"
         style={{
           borderTopColor: previewTheme.borderColor,
+          paddingBottom: containerPaddingBottom > 0 ? `${containerPaddingBottom}px` : undefined,
         }}
       >
         {showEditor && (
