@@ -24,6 +24,8 @@ export function useMobileKeyboard() {
     // Detect keyboard visibility and calculate offset for positioning toolbar
     let lastKeyboardState = false
     let lastOffset = 0
+    // Track maximum viewport height to detect keyboard even when layout viewport resizes (interactive-widget)
+    let maxViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight
 
     const updateKeyboardState = () => {
       if (!window.visualViewport) {
@@ -41,17 +43,24 @@ export function useMobileKeyboard() {
 
       const viewportHeight = window.visualViewport.height
       const windowHeight = window.innerHeight
-      const heightDifference = windowHeight - viewportHeight
 
-      // Keyboard is considered visible if viewport height decreased significantly
-      // (typically more than 150px on mobile devices)
+      // Update max viewport height if current is larger (to support interactive-widget)
+      if (viewportHeight > maxViewportHeight) {
+        maxViewportHeight = viewportHeight
+      }
+
+      // Check visibility against max height to handle cases where window.innerHeight shrinks (Android)
+      const diffFromMax = maxViewportHeight - viewportHeight
+      const diffFromWindow = windowHeight - viewportHeight
+      
       const keyboardThreshold = 150
-      const keyboardVisible = heightDifference > keyboardThreshold
+      // Keyboard is visible if viewport is significantly smaller than max observed height
+      const keyboardVisible = diffFromMax > keyboardThreshold
 
-      // Calculate the offset: the distance from the bottom of the visual viewport to the bottom of the window
-      // This tells us where to position the toolbar (above the keyboard)
-      // We use heightDifference directly as it represents the keyboard height
-      const offset = keyboardVisible ? heightDifference : 0
+      // Calculate the offset: 
+      // On iOS (overlay), windowHeight > viewportHeight, so offset > 0 (pushes toolbar up)
+      // On Android (resize), windowHeight == viewportHeight, so offset == 0 (toolbar sits at bottom)
+      const offset = keyboardVisible ? diffFromWindow : 0
 
       // Only update if state actually changed to avoid unnecessary re-renders
       if (keyboardVisible !== lastKeyboardState || Math.abs(offset - lastOffset) > 1) {
