@@ -108,12 +108,14 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
       const view = viewRef.current
       if (view) {
         undo(view)
+        view.focus()
       }
     },
     redo: () => {
       const view = viewRef.current
       if (view) {
         redo(view)
+        view.focus()
       }
     },
     indentLeft: () => {
