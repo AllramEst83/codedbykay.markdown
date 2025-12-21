@@ -1,7 +1,7 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap, undo, redo, indentMore, indentLess } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, undo, redo } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { useTheme } from '../contexts/ThemeContext'
 import type { EditorProps, EditorRef } from '../types/components'
@@ -121,14 +121,65 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
     indentLeft: () => {
       const view = viewRef.current
       if (view) {
-        indentLess(view)
+        const changes: {from: number, to: number, insert: string}[] = []
+        const doc = view.state.doc
+        const lines = new Set<number>()
+        
+        view.state.selection.ranges.forEach(range => {
+          const startLine = doc.lineAt(range.from).number
+          const endLine = doc.lineAt(range.to).number
+          for (let i = startLine; i <= endLine; i++) {
+            lines.add(i)
+          }
+        })
+        
+        lines.forEach(lineNo => {
+          const line = doc.line(lineNo)
+          const text = line.text
+          if (text.startsWith("  ")) {
+            changes.push({from: line.from, to: line.from + 2, insert: ""})
+          } else if (text.startsWith(" ")) {
+            changes.push({from: line.from, to: line.from + 1, insert: ""})
+          } else if (text.startsWith("\t")) {
+            changes.push({from: line.from, to: line.from + 1, insert: ""})
+          }
+        })
+        
+        if (changes.length > 0) {
+          view.dispatch({
+            changes,
+            userEvent: "delete.dedent"
+          })
+        }
         view.focus()
       }
     },
     indentRight: () => {
       const view = viewRef.current
       if (view) {
-        indentMore(view)
+        const changes: {from: number, insert: string}[] = []
+        const doc = view.state.doc
+        const lines = new Set<number>()
+        
+        view.state.selection.ranges.forEach(range => {
+          const startLine = doc.lineAt(range.from).number
+          const endLine = doc.lineAt(range.to).number
+          for (let i = startLine; i <= endLine; i++) {
+            lines.add(i)
+          }
+        })
+        
+        lines.forEach(lineNo => {
+          const line = doc.line(lineNo)
+          changes.push({from: line.from, insert: "  "})
+        })
+        
+        if (changes.length > 0) {
+          view.dispatch({
+            changes,
+            userEvent: "input.indent"
+          })
+        }
         view.focus()
       }
     }
