@@ -258,9 +258,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const supabase = getSupabaseClient();
     set({ status: 'loading', error: null });
 
+    const redirectTo = import.meta.env.VITE_AUTH_REDIRECT_URL || window.location.origin;
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: redirectTo,
+      },
     });
 
     if (error) {
