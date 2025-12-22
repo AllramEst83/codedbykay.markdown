@@ -149,6 +149,7 @@ export async function storeImage(file: File): Promise<string> {
 /**
  * Converts a custom image URL (md-editor-image://{id}) or blob URL to an object URL
  * This is used when rendering markdown to ensure images display correctly
+ * Also handles Supabase Storage URLs with caching
  */
 export async function getImageUrlForRendering(url: string): Promise<string> {
   // Check if it's our custom URL scheme
@@ -165,6 +166,13 @@ export async function getImageUrlForRendering(url: string): Promise<string> {
   // If it's already a blob URL or data URL, return as-is
   if (url.startsWith('blob:') || url.startsWith('data:')) {
     return url
+  }
+  
+  // If it's a Supabase Storage URL, use cloud image rendering with cache
+  if (url.includes('/storage/v1/object/public/user-images/')) {
+    // Dynamically import to avoid circular dependency
+    const { getCloudImageForRendering } = await import('../services/imageSyncService')
+    return getCloudImageForRendering(url)
   }
   
   // For other URLs (http/https), return as-is

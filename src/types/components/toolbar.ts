@@ -1,4 +1,5 @@
 import { EditorRef } from './editor'
+import type { ViewMode } from '../modes'
 
 export interface ToolbarProps {
   editorRef: EditorRef | null
@@ -17,8 +18,6 @@ export interface MobileToolbarProps {
   onCompressingImageChange: (isCompressing: boolean) => void
   onOpenImageManager: () => void
 }
-
-export type ViewMode = 'editor' | 'preview'
 
 export interface MobileViewToggleProps {
   viewMode: ViewMode

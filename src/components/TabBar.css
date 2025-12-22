@@ -1,10 +1,49 @@
 .tab-bar {
   display: flex;
   align-items: center;
-  overflow-x: auto;
-  overflow-y: hidden;
+  /* Allow account dropdowns/menus to render outside the bar */
+  overflow: visible;
   min-height: 36px;
   border-bottom: 1px solid var(--tab-border, #333);
+}
+
+.sync-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  margin-right: 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.sync-indicator.syncing {
+  color: #4a9eff;
+}
+
+.sync-indicator.synced {
+  color: #4caf50;
+}
+
+.sync-indicator.error {
+  color: #f44336;
+}
+
+.sync-indicator.offline {
+  color: #ff9800;
+}
+
+.sync-icon.spinning {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .tabs-container {
@@ -130,7 +169,6 @@
   width: 36px;
   height: 36px;
   padding: 0;
-  margin-left: auto;
   background-color: transparent;
   border: none;
   border-left: 1px solid var(--tab-border, #333);
@@ -143,6 +181,38 @@
 .tab-add:hover {
   opacity: 0.9;
   background-color: var(--tab-bg, #37373d);
+}
+
+.tab-actions {
+  display: flex;
+  align-items: stretch;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.tab-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 12px;
+  background-color: transparent;
+  border: none;
+  border-left: 1px solid var(--tab-border, #333);
+  color: var(--tab-text, #cccccc);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tab-action:hover {
+  opacity: 0.9;
+  background-color: var(--tab-bg, #37373d);
+}
+
+.tab-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .save-indicator {

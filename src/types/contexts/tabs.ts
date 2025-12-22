@@ -1,4 +1,4 @@
-import { TabData } from '../services'
+import { TabData, SyncState } from '../services'
 
 export interface TabsContextType {
   tabs: TabData[]
@@ -10,6 +10,7 @@ export interface TabsContextType {
   updateTabTitle: (tabId: string, title: string) => void
   saveTab: (tabId: string) => void
   saveState: Map<string, 'saving' | 'saved' | 'idle'>
+  syncState: SyncState
 }
 
 export interface TabsProviderProps {

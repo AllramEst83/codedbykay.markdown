@@ -2,13 +2,16 @@ import { useState, useRef, useEffect, memo, useCallback } from 'react'
 import { useTabs } from '../contexts/TabsContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
-import { HelpCircle } from 'lucide-react'
+import { useAuthStore } from '../contexts/AuthContext'
+import { HelpCircle, Cloud, CloudOff, AlertCircle } from 'lucide-react'
+import AuthButton from './auth/AuthButton'
 import './TabBar.css'
 
 const TabBarComponent = () => {
-  const { tabs, activeTabId, addTab, closeTab, switchTab, updateTabTitle, saveState } = useTabs()
+  const { tabs, activeTabId, addTab, closeTab, switchTab, updateTabTitle, saveState, syncState } = useTabs()
   const { previewTheme } = useTheme()
   const { showModal } = useModal()
+  const isAuthenticated = useAuthStore((state) => state.status === 'authenticated')
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -89,13 +92,61 @@ SAVING:
 • Click the Save button to download your markdown file
 • Use the Open button to load markdown files
 
-IMPORTANT - LOCAL STORAGE:
-This app stores all your notes and images locally in your browser on this device only. Your data is not synced to any cloud service. If you clear your browser data or use a different device, your notes will not be available there.
+IMPORTANT - STORAGE:
+By default, this app stores all your notes and images locally in your browser on this device only.
 
-Cloud syncing may be available in the future.`,
+To enable cloud syncing and access your notes across devices:
+• Click the profile icon to sign up or log in
+• Your notes will automatically sync to the cloud
+• Access your notes from any device by logging in
+
+If you clear your browser data while logged out, your notes will be lost. Log in to keep them safe!`,
       confirmText: 'Got it'
     })
   }, [showModal])
+
+  const getSyncIndicator = () => {
+    if (!isAuthenticated) {
+      return null
+    }
+
+    const { status, pendingChanges } = syncState
+
+    let icon
+    let title
+    let className = 'sync-indicator'
+
+    switch (status) {
+      case 'syncing':
+        icon = <Cloud size={14} className="sync-icon spinning" />
+        title = `Syncing${pendingChanges > 0 ? ` (${pendingChanges} pending)` : ''}...`
+        className += ' syncing'
+        break
+      case 'synced':
+        icon = <Cloud size={14} className="sync-icon" />
+        title = 'Synced to cloud'
+        className += ' synced'
+        break
+      case 'error':
+        icon = <AlertCircle size={14} className="sync-icon" />
+        title = 'Sync error - will retry'
+        className += ' error'
+        break
+      case 'offline':
+        icon = <CloudOff size={14} className="sync-icon" />
+        title = 'Offline - will sync when online'
+        className += ' offline'
+        break
+      default:
+        return null
+    }
+
+    return (
+      <div className={className} title={title}>
+        {icon}
+      </div>
+    )
+  }
 
   const handleCloseTab = async (e: React.MouseEvent, tabId: string, tabTitle: string) => {
     e.stopPropagation()
@@ -161,24 +212,28 @@ Cloud syncing may be available in the future.`,
           </div>
         ))}
       </div>
-      <button 
-        className="tab-help" 
-        onClick={handleShowHelp} 
-        aria-label="Show help and instructions" 
-        title="Help & Instructions"
-      >
-        <HelpCircle size={16} />
-      </button>
-      <button 
-        className="tab-add" 
-        onClick={() => addTab()} 
-        aria-label="Add new tab" 
-        title="Add new tab"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-        </svg>
-      </button>
+      <div className="tab-actions">
+        {getSyncIndicator()}
+        <AuthButton />
+        <button 
+          className="tab-help" 
+          onClick={handleShowHelp} 
+          aria-label="Show help and instructions" 
+          title="Help & Instructions"
+        >
+          <HelpCircle size={16} />
+        </button>
+        <button 
+          className="tab-add" 
+          onClick={() => addTab()} 
+          aria-label="Add new tab" 
+          title="Add new tab"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
     </div>
   )
 }
