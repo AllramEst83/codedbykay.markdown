@@ -234,11 +234,12 @@ export function tabDataToUpdateParams(
 }
 
 /**
- * Converts a CloudNote to TabData
+ * Converts a CloudNote to TabData 
+ * By using the cloud ID, each synced note gets a unique local ID that won't collide.
  */
 export function cloudNoteToTabData(cloudNote: CloudNote): TabData {
   return {
-    id: cloudNote.local_id || cloudNote.id,
+    id: cloudNote.id,
     title: cloudNote.title,
     content: cloudNote.content,
     lastSaved: new Date(cloudNote.updated_at).getTime(),
