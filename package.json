@@ -6,7 +6,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint . --max-warnings 0"
+    "lint": "eslint . --max-warnings 0",
+    "generate:key": "node scripts/generateEncryptionKey.cjs",
+    "generate:salt": "node scripts/generateSalt.cjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.2.4",
