@@ -23,21 +23,21 @@ interface AuthState {
   session: Session | null;
   user: User | null;
   error: string | null;
-  hasApiKey: boolean | null;
-  isCheckingApiKey: boolean;
   isAuthConfigured: boolean;
   lastAuthEvent: number | null;
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<AuthResult>;
   signup: (email: string, password: string) => Promise<AuthResult>;
-  logout: () => Promise<void>;
-  checkApiKey: () => Promise<boolean>;
+  logout: (scope?: 'local' | 'global') => Promise<void>;
+  resetPassword: (email: string) => Promise<AuthResult>;
+  updatePassword: (newPassword: string) => Promise<AuthResult>;
+  deleteAccount: () => Promise<AuthResult>;
   setError: (message: string | null) => void;
 }
 
 function writeSessionSnapshot(session: Session | null) {
   if (!session) {
-    sessionStorage.removeItem(SESSION_CACHE_KEY);
+    localStorage.removeItem(SESSION_CACHE_KEY);
     return;
   }
   const snapshot: CachedSessionSnapshot = {
@@ -45,18 +45,18 @@ function writeSessionSnapshot(session: Session | null) {
     email: session.user.email ?? undefined,
     updatedAt: Date.now(),
   };
-  sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(snapshot));
+  localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(snapshot));
 }
 
 function getSessionSnapshot(): CachedSessionSnapshot | null {
   try {
-    const value = sessionStorage.getItem(SESSION_CACHE_KEY);
+    const value = localStorage.getItem(SESSION_CACHE_KEY);
     if (!value) {
       return null;
     }
     return JSON.parse(value) as CachedSessionSnapshot;
   } catch {
-    sessionStorage.removeItem(SESSION_CACHE_KEY);
+    localStorage.removeItem(SESSION_CACHE_KEY);
     return null;
   }
 }
@@ -69,8 +69,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   user: null,
   error: null,
-  hasApiKey: null,
-  isCheckingApiKey: false,
   isAuthConfigured,
   lastAuthEvent: null,
   initialize: async () => {
@@ -132,12 +130,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       lastAuthEvent: Date.now(),
     });
 
-    if (session) {
-      await get().checkApiKey();
-    } else {
-      set({ hasApiKey: null });
-    }
-
     authSubscription?.unsubscribe();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
@@ -149,12 +141,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
         lastAuthEvent: Date.now(),
       });
-
-      if (newSession) {
-        await get().checkApiKey();
-      } else {
-        set({ hasApiKey: null });
-      }
     });
 
     authSubscription = listener.subscription;
@@ -192,8 +178,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       lastAuthEvent: Date.now(),
     });
 
-    await get().checkApiKey();
-
     return { success: true };
   },
   signup: async (email, password) => {
@@ -229,19 +213,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       lastAuthEvent: Date.now(),
     });
 
-    if (data.session) {
-      await get().checkApiKey();
-      return { success: true };
-    }
-
     return { success: true };
   },
-  logout: async () => {
+  logout: async (scope = 'global') => {
     if (!isAuthConfigured) {
       return;
     }
     const supabase = getSupabaseClient();
-    await supabase.auth.signOut();
+    try {
+      // @supabase/supabase-js v2 supports scope: 'local' | 'global' | 'others'
+      await supabase.auth.signOut({ scope });
+    } catch (error) {
+      console.warn('signOut failed; continuing to clear local auth state anyway.', error);
+    }
 
     writeSessionSnapshot(null);
     authSubscription?.unsubscribe();
@@ -251,22 +235,73 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       session: null,
       user: null,
       error: null,
-      hasApiKey: null,
     });
   },
-  checkApiKey: async () => {
+  resetPassword: async (email: string) => {
     if (!isAuthConfigured) {
-      set({ hasApiKey: false });
-      return false;
-    }
-    if (get().isCheckingApiKey) {
-      return Boolean(get().hasApiKey);
+      const error = 'Authentication is not configured.';
+      set({ error });
+      return { success: false, error };
     }
 
-    set({ isCheckingApiKey: true });
-    const hasKey = await ApiKeyService.hasApiKey();
-    set({ hasApiKey: hasKey, isCheckingApiKey: false });
-    return hasKey;
+    const supabase = getSupabaseClient();
+    set({ error: null });
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    if (error) {
+      console.error('Password reset failed', error);
+      set({ error: error.message });
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  },
+  updatePassword: async (newPassword: string) => {
+    if (!isAuthConfigured) {
+      const error = 'Authentication is not configured.';
+      set({ error });
+      return { success: false, error };
+    }
+
+    const supabase = getSupabaseClient();
+    set({ error: null });
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      console.error('Password update failed', error);
+      set({ error: error.message });
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  },
+  deleteAccount: async () => {
+    if (!isAuthConfigured) {
+      const error = 'Authentication is not configured.';
+      set({ error });
+      return { success: false, error };
+    }
+
+    const user = get().user;
+
+    if (!user) {
+      const error = 'No user logged in';
+      set({ error });
+      return { success: false, error };
+    }
+
+    // Note: Supabase doesn't have a direct deleteUser method for users to delete themselves
+    // This would typically be handled by an Edge Function with admin privileges
+    // For now, we'll just sign out and return an error message
+    const error = 'Account deletion must be handled by an admin. Please contact support.';
+    set({ error });
+    return { success: false, error };
   },
   setError: (message) => set({ error: message }),
 }));

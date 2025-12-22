@@ -18,6 +18,19 @@ A modern, feature-rich markdown editor built with React, TypeScript, and CodeMir
 
 - Node.js 18+ and npm/yarn/pnpm
 
+### Environment variables (Supabase)
+
+If you want to use Auth (optional), copy `env.example` to `.env` and fill in:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+If you want to use **Delete account** (Edge Function), your Supabase Functions environment must also include:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `ALLOWED_ORIGINS` (optional)
+
 ### Installation
 
 1. Install dependencies:

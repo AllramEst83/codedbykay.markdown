@@ -13,6 +13,7 @@ import { useDebounce } from './hooks/useDebounce'
 import { useMobileKeyboard } from './hooks/useMobileKeyboard'
 import { migrateFromLocalStorage } from './utils/imageStorage'
 import type { MobileViewMode } from './types/app'
+import ResetPasswordPage from './components/auth/ResetPasswordPage'
 import './App.css'
 
 function App() {
@@ -29,6 +30,11 @@ function App() {
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [isCompressingImage, setIsCompressingImage] = useState(false)
   const [isImageManagerOpen, setIsImageManagerOpen] = useState(false)
+
+  // Minimal route handling (no router) for Supabase password recovery redirect.
+  if (typeof window !== 'undefined' && window.location.pathname === '/reset-password') {
+    return <ResetPasswordPage />
+  }
 
   const activeTab = useMemo(() => {
     if (!activeTabId) return null

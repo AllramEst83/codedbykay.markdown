@@ -1,0 +1,224 @@
+.authActionText {
+  margin-left: 8px;
+  font-size: 13px;
+}
+
+.authEmail {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.authMenu {
+  position: relative;
+}
+
+.authDropdown {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  min-width: 240px;
+  background: var(--modal-bg, #252526);
+  border: 1px solid var(--modal-border, #404040);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  z-index: 10003;
+}
+
+.authDropdownHeader {
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--modal-border, #404040);
+}
+
+.authDropdownLabel {
+  font-size: 12px;
+  color: var(--modal-text-secondary, #cccccc);
+  margin-bottom: 4px;
+}
+
+.authDropdownEmail {
+  font-size: 13px;
+  color: var(--modal-text, #e8e8e8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.authDropdownItem {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: var(--modal-text, #e8e8e8);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.authDropdownItem:hover {
+  background: var(--modal-button-hover-bg, #2a2d2e);
+}
+
+.authDropdownItem.danger {
+  color: #ff6b6b;
+}
+
+.authDropdownDivider {
+  height: 1px;
+  background: var(--modal-border, #404040);
+}
+
+.authHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.authTabs {
+  display: inline-flex;
+  border: 1px solid var(--modal-border, #404040);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.authTab {
+  padding: 8px 10px;
+  font-size: 13px;
+  background: transparent;
+  border: none;
+  color: var(--modal-text-secondary, #cccccc);
+  cursor: pointer;
+}
+
+.authTab.active {
+  background: var(--modal-button-confirm-bg, #007acc);
+  color: var(--modal-button-confirm-text, #ffffff);
+}
+
+.authTab:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.authClose {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--modal-border, #404040);
+  background: transparent;
+  color: var(--modal-text, #e8e8e8);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 0;
+}
+
+.authClose:hover {
+  background: var(--modal-button-hover-bg, #2a2d2e);
+}
+
+.authTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--modal-text, #e8e8e8);
+}
+
+.authLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--modal-text-secondary, #cccccc);
+}
+
+.authMessage {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.authMessage.error {
+  border-color: rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.08);
+  color: #ffb3b3;
+}
+
+.authMessage.info {
+  border-color: rgba(74, 158, 255, 0.35);
+  background: rgba(74, 158, 255, 0.08);
+  color: #b7d9ff;
+}
+
+.authActions {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.authLink {
+  border: none;
+  background: transparent;
+  color: var(--modal-text-secondary, #cccccc);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+}
+
+.authLink:hover {
+  color: var(--modal-text, #e8e8e8);
+  text-decoration: underline;
+}
+
+.authPage {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.authPageCard {
+  width: min(520px, 100%);
+  border: 1px solid var(--app-border-color, #404040);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.08);
+  padding: 22px;
+}
+
+.authPageTitle {
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.authPageSubtitle {
+  font-size: 14px;
+  opacity: 0.85;
+  margin-bottom: 18px;
+}
+
+.authPageForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.authPageActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+@media (max-width: 520px) {
+  .authActionText {
+    display: none;
+  }
+
+  .authPageActions {
+    flex-direction: column;
+  }
+}
+
+

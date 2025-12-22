@@ -3,6 +3,7 @@ import { useTabs } from '../contexts/TabsContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
 import { HelpCircle } from 'lucide-react'
+import AuthButton from './auth/AuthButton'
 import './TabBar.css'
 
 const TabBarComponent = () => {
@@ -148,24 +149,27 @@ Cloud syncing may be available in the future.`,
           </div>
         ))}
       </div>
-      <button 
-        className="tab-help" 
-        onClick={handleShowHelp} 
-        aria-label="Show help and instructions" 
-        title="Help & Instructions"
-      >
-        <HelpCircle size={16} />
-      </button>
-      <button 
-        className="tab-add" 
-        onClick={() => addTab()} 
-        aria-label="Add new tab" 
-        title="Add new tab"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-        </svg>
-      </button>
+      <div className="tab-actions">
+        <AuthButton />
+        <button 
+          className="tab-help" 
+          onClick={handleShowHelp} 
+          aria-label="Show help and instructions" 
+          title="Help & Instructions"
+        >
+          <HelpCircle size={16} />
+        </button>
+        <button 
+          className="tab-add" 
+          onClick={() => addTab()} 
+          aria-label="Add new tab" 
+          title="Add new tab"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
     </div>
   )
 }

@@ -4,6 +4,7 @@ import App from './App.tsx'
 import { ThemeProvider } from './contexts/ThemeContext.tsx'
 import { TabsProvider } from './contexts/TabsContext.tsx'
 import { ModalProvider } from './contexts/ModalContext.tsx'
+import AuthBootstrap from './components/auth/AuthBootstrap.tsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -11,6 +12,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <TabsProvider>
         <ModalProvider>
+          <AuthBootstrap />
           <App />
         </ModalProvider>
       </TabsProvider>

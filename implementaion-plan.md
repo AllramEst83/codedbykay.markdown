@@ -4,7 +4,6 @@
 
 - [x] Set up Supabase in the project
 - [ ] Set up Supabase Auth in the project
-  - [ ] Move Auth service from LLM project to this project (src\contexts\AuthContext.ts. Improve and refine fro this project.)
   - [ ] Login
   - [ ] Register
   - [ ] Logout
@@ -13,26 +12,44 @@
   - [ ] Verify Email
 - [ ] Setup Supabase realtime for synching notes between devices.
   - [ ] Create a new table for notes and enable realtime synchronization.
-  - [ ] Encrypt/decrypt notes using "supabase_shared\crypto.ts" on the backend.
-- [ ] Use Zustand for state management for Auth.
+  - [ ] Encrypt/decrypt notes using "supabase/functions/\_shared/crypto.ts" on the backend.
+  - [ ] Create CRUD endpoints/functions for all operations on the notes table and images storage. Realtime subscription has to be on the client side. These operations use the user token with the Supabase client on the server side.
+- [ ] Use Zustand for state management (Auth state should persist across browser tabs and page refreshes).
 - [ ] UI for Auth components
   - [ ] Login form
   - [ ] Register form
-  - [ ] Logout button
   - [ ] Login button
   - [ ] Forgot Password form
-  - [ ] User profile button
-    - [ ] Delete account button
+  - [ ] User profile button/icon
+    - [ ] Logout button
     - [ ] Change password button
+    - [ ] Delete account button (In red color and requires user to enter its email to confirm the action)
 
 ---
+
+#### Register flow
+
+- Once the user has registered the user is automatically signed in.
 
 #### User experience
 
 - The app can be used without requiring the use to signup or login.
-- If the user does not login all tabs and content is stored locally in the browser.
+- If the user does not login all tabs and content is stored locally in the browser with localstorage and IndexedDB.
 - If the user logs in, all tabs and content is synced to the cloud and stored in the database.
 - The storage hierarchy is as follows:
+
+---
+
+#### Architecture Guidelines
+
+**⚠️ IMPORTANT: Supabase Client Usage**
+
+- **ALWAYS** use the Supabase client (`supabase/client.ts`) to invoke Edge Functions
+- **NEVER** use ordinary REST requests (fetch, axios, etc.) to call Supabase functions
+- The Supabase client handles authentication, error handling, and proper request formatting automatically
+- Example: Use `supabase.functions.invoke('function-name', { body: {...} })` instead of direct HTTP calls
+
+---
 
 #### Storage Hierarchy & Data Flow
 
@@ -82,7 +99,8 @@ ALTER PUBLICATION supabase_realtime ADD TABLE notes;
 -- Indexes for performance
 CREATE INDEX idx_notes_user_id ON notes(user_id);
 CREATE INDEX idx_notes_updated_at ON notes(updated_at DESC);
-CREATE INDEX idx_notes_local_id ON notes(local_id) WHERE local_id IS NOT NULL;**2. Supabase Storage for Images:**
+CREATE INDEX idx_notes_local_id ON notes(local_id) WHERE local_id IS NOT NULL;
+**2. Supabase Storage for Images:**
 
 - **Bucket**: `user-images` (private, user-scoped)
 - **Path structure**: `{user_id}/{image_id}.{ext}`
@@ -95,15 +113,23 @@ CREATE INDEX idx_notes_local_id ON notes(local_id) WHERE local_id IS NOT NULL;**
 
 **Phase 1: Database Setup**
 
-- [ ] Create `notes` table migration
-- [ ] Set up Row Level Security (RLS) policies
-- [ ] Enable Realtime subscriptions on `notes` table
+- [ ] Create `notes` table migration in `supabase/migrations/` directory
+  - [ ] Migration file should include table creation, RLS policies, indexes, and realtime enablement
+  - [ ] Use proper migration naming convention (e.g., `YYYYMMDDHHMMSS_create_notes_table.sql`)
+- [ ] Set up Row Level Security (RLS) policies (included in migration)
+- [ ] Enable Realtime subscriptions on `notes` table (included in migration)
 - [ ] Create Supabase Storage bucket `user-images`
 - [ ] Set up Storage policies for user-scoped access
-- [ ] Create Edge Function for encryption/decryption (`supabase/functions/encrypt-note/`)
+- [ ] Create Edge Functions for CRUD operations on notes table and images storage
+  - [ ] Encrypt/decrypt notes using `supabase/functions/_shared/crypto.ts` on the backend
+  - [ ] Create CRUD endpoints/functions for all operations on the notes table and images storage
+  - [ ] Realtime subscription has to be on the client side
+  - [ ] These DB and Storage operations use the user token with the Supabase client for RLS and Storage policies on the server side
+  - [ ] **IMPORTANT**: Always invoke these functions using `supabase.functions.invoke()` from `src/supabase/client.ts`, never use direct REST requests
 
 **Phase 2: Sync Service Architecture**
 
+- [ ] Install and configure Zustand for state management
 - [ ] Create `src/services/syncService.ts` - Main sync orchestration
 - [ ] Create `src/services/cloudStorageService.ts` - Supabase operations
 - [ ] Create `src/services/conflictResolver.ts` - Conflict resolution logic
@@ -144,10 +170,15 @@ CREATE INDEX idx_notes_local_id ON notes(local_id) WHERE local_id IS NOT NULL;**
 **Phase 6: Image Sync**
 
 - [ ] Upload images to Supabase Storage on note save
-- [ ] Download images from Supabase Storage when syncing notes
-- [ ] Update markdown image references to use Supabase Storage URLs
-- [ ] Handle image deletion across devices
+- [ ] Update markdown content to reference Supabase Storage URLs (not IndexedDB references)
+- [ ] Implement local image caching layer:
+  - [ ] Cache images in IndexedDB keyed by Supabase Storage URL
+  - [ ] On image load: Check IndexedDB cache first, then fetch from Supabase Storage if not cached
+  - [ ] Background prefetch: Cache images when syncing notes
+  - [ ] Cache invalidation: Update/delete cache when images are modified/deleted
+- [ ] Handle image deletion across devices (delete from Supabase Storage, clear local cache)
 - [ ] Clean up unused images (orphaned images not referenced in any note)
+- [ ] Handle offline image access (serve from IndexedDB cache when offline)
 
 ---
 
@@ -209,7 +240,18 @@ if (localNote.updated_at === cloudNote.updated_at) {
    - If not exists: Create new local tab
    - If exists: Already handled in step 4
 6. Upload all IndexedDB images to Supabase Storage
-7. Update markdown content to reference Supabase Storage URLs
+7. Update markdown content to reference Supabase Storage URLs (recommended approach)
+   - **Why Supabase Storage URLs instead of local IndexedDB references:**
+     - Single source of truth: No sync conflicts or duplication
+     - Smaller note content: URLs are much smaller than base64 or large references
+     - Better sync performance: Only URLs need syncing, not binary data
+     - CDN benefits: Supabase Storage provides fast global delivery
+     - Simpler conflict resolution: Only note content needs merging, not images
+   - **Local caching strategy:**
+     - Cache images in IndexedDB for offline access (keyed by Supabase Storage URL)
+     - On image load: Check IndexedDB cache first, fallback to Supabase Storage
+     - Background sync: Prefetch and cache images when online
+     - Cache invalidation: Update cache when image is modified/deleted
 8. Enable realtime subscription
 
 **On Subsequent Logins:**
@@ -221,8 +263,9 @@ if (localNote.updated_at === cloudNote.updated_at) {
 
 #### Security Considerations
 
-- [ ] Encrypt note content on backend (Edge Function)
-- [ ] Use Supabase RLS to ensure users only access their own notes
+- [ ] Always enable JWT token true in supabase/config.toml for all functions except for register and login functions.
+- [ ] Encrypt note content on backend (supabase/functions/\_shared/crypto.ts)
+- [ ] Use Supabase RLS to ensure users only access their own notes (This requires the supabase client to be using the user auth token to communicate with supabase DB and RLS policies to be enabled on the notes table)
 - [ ] Encrypt images in Supabase Storage (optional, but recommended)
 - [ ] Store encryption keys securely (Supabase Vault or environment variables)
 - [ ] Implement rate limiting on sync operations
@@ -233,11 +276,9 @@ if (localNote.updated_at === cloudNote.updated_at) {
 #### Performance Optimizations
 
 - [ ] Batch sync operations (upload multiple notes in single transaction)
-- [ ] Implement incremental sync (only sync changed notes)
+- [ ] Implement incremental sync (only sync changed notes. This is vital for performance and scalability.)
 - [ ] Use Supabase Storage CDN for image delivery
 - [ ] Compress note content before upload (if large)
-- [ ] Implement pagination for users with many notes
-- [ ] Cache frequently accessed notes locally
 - [ ] Debounce realtime updates to prevent UI flicker
 
 ---
@@ -254,38 +295,46 @@ if (localNote.updated_at === cloudNote.updated_at) {
 
 ---
 
-#### Testing Checklist
+#### Testing Strategy
 
-- [ ] Test login with existing local notes
-- [ ] Test login with existing cloud notes
-- [ ] Test login with conflicting notes (same note, different content)
-- [ ] Test realtime sync (open app on two devices, edit on one)
-- [ ] Test offline mode (make changes offline, sync when online)
-- [ ] Test image sync (upload image on one device, verify on another)
-- [ ] Test note deletion sync
-- [ ] Test large note sync (notes with many images, large content)
-- [ ] Test concurrent edits (edit same note on two devices simultaneously)
-- [ ] Test logout and re-login (verify data persists)
+- [ ] **Auth**: Login, Register, Logout, Session persistence
+- [ ] **Sync**:
+  - [ ] Login with existing local notes (should merge)
+  - [ ] Login with existing cloud notes (should download)
+  - [ ] Realtime updates across devices
+  - [ ] Conflict resolution (same note edited on two devices)
+- [ ] **Offline**:
+  - [ ] View notes/images offline (from cache)
+  - [ ] Edit offline -> Sync on reconnect
+- [ ] **Images**:
+  - [ ] Upload/Download
+  - [ ] Cache hits (verify no network request for cached images)
 
-```
+---
 
 ## Summary
 
 **Storage approach:**
+
 - Use Supabase `notes` table for note content (encrypted on backend)
 - Use Supabase Storage for images (better performance than base64 in DB)
-- Keep local cache for offline access and performance
+- Keep local cache for offline access and performance (localStorage + IndexedDB)
 
 **Conflict resolution:**
+
 - Timestamp-based (most recent wins)
 - Automatic merge for same-timestamp conflicts
 - Silent resolution (no user notifications)
 
 **Sync strategy:**
+
 - Initial sync on login (merge local + cloud)
 - Realtime sync for ongoing changes
 - Bidirectional sync (local ↔ cloud)
 - Offline queue for when network is unavailable
 
 This plan supports automatic, silent syncing across devices without user intervention.
+
+```
+
 ```
