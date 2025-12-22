@@ -90,8 +90,9 @@ async function deriveKey(): Promise<CryptoKey> {
  * Encrypt text using AES-256-GCM
  */
 export async function encrypt(plaintext: string): Promise<EncryptedData> {
-  if (!plaintext) {
-    throw new Error('Cannot encrypt empty text');
+  if (!plaintext || plaintext.trim() === '') {
+    // For empty content, use a single space to allow encryption
+    plaintext = ' ';
   }
 
   const key = await deriveKey();

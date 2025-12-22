@@ -361,6 +361,7 @@ deno_version = 2
 
 [edge_runtime.secrets]
 ENCRYPTION_KEY = "env(ENCRYPTION_KEY)"
+ENCRYPTION_SALT = "env(ENCRYPTION_SALT)"
 
 [analytics]
 enabled = true
@@ -383,4 +384,22 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 
 
 [functions.delete-user]
+verify_jwt = true
+
+[functions.create-note]
+verify_jwt = true
+
+[functions.get-notes]
+verify_jwt = true
+
+[functions.update-note]
+verify_jwt = true
+
+[functions.delete-note]
+verify_jwt = true
+
+[functions.upload-image]
+verify_jwt = true
+
+[functions.delete-image]
 verify_jwt = true

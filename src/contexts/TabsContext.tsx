@@ -1,7 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { localStorageService } from '../services/localStorageService'
+import { syncService } from '../services/syncService'
+import { useAuthStore } from './AuthContext'
 import type { TabData } from '../types/services'
 import type { TabsContextType, TabsProviderProps } from '../types/contexts'
+import type { SyncState } from '../types/services/sync'
 
 const TabsContext = createContext<TabsContextType | undefined>(undefined)
 
@@ -59,6 +62,15 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
   })
 
   const [saveState, setSaveState] = useState<Map<string, 'saving' | 'saved' | 'idle'>>(new Map())
+  const [syncState, setSyncState] = useState<SyncState>({
+    status: 'idle',
+    lastSync: null,
+    pendingChanges: 0,
+  })
+  
+  // Get auth state for sync
+  const authStatus = useAuthStore((state) => state.status)
+  const isAuthenticated = authStatus === 'authenticated'
   
   // Ref to store the debounce timeout for auto-saving (browser timeout ID)
   const saveTimeoutRef = useRef<number | null>(null)
@@ -260,6 +272,11 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     // Remove tab from localStorage
     localStorageService.removeTab(tabId)
     
+    // Queue for cloud deletion if authenticated
+    if (isAuthenticated) {
+      syncService.queueNoteForSync(tabId, 'delete')
+    }
+    
     // Clean up save state and last saved state
     setSaveState((prev) => {
       const newState = new Map(prev)
@@ -271,7 +288,7 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
       newState.delete(tabId)
       return newState
     })
-  }, [activeTabId])
+  }, [activeTabId, isAuthenticated])
 
   const switchTab = useCallback((tabId: string) => {
     setActiveTabId(tabId)
@@ -349,6 +366,61 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     }
   }, [tabIdsString, activeTabId]) // Only when tab structure or activeTabId change
 
+  // Subscribe to sync state changes
+  useEffect(() => {
+    const unsubscribe = syncService.onSyncStateChange((state) => {
+      setSyncState(state)
+    })
+    return unsubscribe
+  }, [])
+
+  // Subscribe to note updates from sync (cloud changes)
+  useEffect(() => {
+    const unsubscribe = syncService.onNoteUpdate((updatedNotes) => {
+      if (updatedNotes.length === 0) {
+        // Handle note deletion from another device
+        return
+      }
+
+      setTabs((prevTabs) => {
+        const updatedTabsMap = new Map(prevTabs.map((t) => [t.id, t]))
+        
+        // Update or add synced notes
+        updatedNotes.forEach((note) => {
+          updatedTabsMap.set(note.id, note)
+        })
+
+        return Array.from(updatedTabsMap.values())
+      })
+
+      // Update last saved state for synced notes
+      setLastSavedState((prev) => {
+        const newState = new Map(prev)
+        updatedNotes.forEach((note) => {
+          newState.set(note.id, { content: note.content, title: note.title })
+        })
+        return newState
+      })
+    })
+    return unsubscribe
+  }, [])
+
+  // Queue notes for cloud sync after local save (only if authenticated)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return
+    }
+
+    // Queue dirty tabs for sync
+    tabs.forEach((tab) => {
+      const lastSaved = lastSavedState.get(tab.id)
+      if (lastSaved && (lastSaved.content !== tab.content || lastSaved.title !== tab.title)) {
+        // Note has changes - queue for sync
+        syncService.queueNoteForSync(tab.id, 'update')
+      }
+    })
+  }, [tabs, lastSavedState, isAuthenticated])
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -371,6 +443,7 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
         updateTabTitle,
         saveTab,
         saveState,
+        syncState,
       }}
     >
       {children}

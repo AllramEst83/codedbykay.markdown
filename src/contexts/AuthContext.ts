@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { Session, User } from '@supabase/supabase-js';
 import { getSupabaseClient, isAuthConfigured } from '../supabase/client';
+import { syncService } from '../services/syncService';
+import { clearAuthData } from '../utils/authHelpers';
 
 const SESSION_CACHE_KEY = 'markdown_editor_auth_snapshot';
 
@@ -107,6 +109,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { data, error } = await supabase.auth.getSession();
     if (error) {
       console.error('Failed to hydrate session', error);
+      
+      // If session is invalid, clear all auth data
+      if (error.message.includes('invalid') || error.message.includes('expired')) {
+        console.warn('Clearing invalid session data');
+        clearAuthData();
+      }
+      
       set({
         status: 'error',
         initializing: false,
@@ -130,10 +139,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       lastAuthEvent: Date.now(),
     });
 
+    // Initialize sync service if user is authenticated
+    if (session?.user) {
+      try {
+        await syncService.initialize(session.user.id);
+      } catch (error) {
+        console.error('Failed to initialize sync service:', error);
+        
+        // If sync initialization fails due to auth error, clear the session
+        if (error instanceof Error && error.message.includes('401')) {
+          console.warn('Invalid session detected, clearing auth state');
+          writeSessionSnapshot(null);
+          set({
+            status: 'unauthenticated',
+            session: null,
+            user: null,
+            error: 'Session expired or invalid. Please log in again.',
+          });
+        }
+      }
+    }
+
     authSubscription?.unsubscribe();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       writeSessionSnapshot(newSession);
+      
+      const wasAuthenticated = get().status === 'authenticated';
+      const isNowAuthenticated = !!newSession;
+      
       set({
         session: newSession,
         user: newSession?.user ?? null,
@@ -141,6 +175,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
         lastAuthEvent: Date.now(),
       });
+
+      // Handle sync service based on auth state changes
+      if (isNowAuthenticated && !wasAuthenticated && newSession?.user) {
+        // User just authenticated - initialize sync
+        try {
+          await syncService.initialize(newSession.user.id);
+        } catch (error) {
+          console.error('Failed to initialize sync service on auth change:', error);
+          
+          // If sync fails due to auth error, sign out the user
+          if (error instanceof Error && (error.message.includes('401') || error.message.includes('403'))) {
+            console.warn('Invalid session detected during auth change, signing out');
+            writeSessionSnapshot(null);
+            set({
+              status: 'unauthenticated',
+              session: null,
+              user: null,
+              error: 'Session invalid. Please log in again.',
+            });
+          }
+        }
+      } else if (!isNowAuthenticated && wasAuthenticated) {
+        // User just signed out - cleanup sync
+        syncService.cleanup();
+      }
     });
 
     authSubscription = listener.subscription;
@@ -178,6 +237,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       lastAuthEvent: Date.now(),
     });
 
+    // Initialize sync service after login
+    if (data.session?.user) {
+      try {
+        await syncService.initialize(data.session.user.id);
+      } catch (error) {
+        console.error('Failed to initialize sync service:', error);
+      }
+    }
+
     return { success: true };
   },
   signup: async (email, password) => {
@@ -213,6 +281,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       lastAuthEvent: Date.now(),
     });
 
+    // Initialize sync service after signup if authenticated
+    if (data.session?.user) {
+      try {
+        await syncService.initialize(data.session.user.id);
+      } catch (error) {
+        console.error('Failed to initialize sync service:', error);
+      }
+    }
+
     return { success: true };
   },
   logout: async (scope = 'global') => {
@@ -230,6 +307,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     writeSessionSnapshot(null);
     authSubscription?.unsubscribe();
     authSubscription = null;
+    
+    // Cleanup sync service
+    syncService.cleanup();
+    
     set({
       status: 'unauthenticated',
       session: null,

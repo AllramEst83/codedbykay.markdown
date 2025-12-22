@@ -7,6 +7,45 @@
   border-bottom: 1px solid var(--tab-border, #333);
 }
 
+.sync-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  margin-right: 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.sync-indicator.syncing {
+  color: #4a9eff;
+}
+
+.sync-indicator.synced {
+  color: #4caf50;
+}
+
+.sync-indicator.error {
+  color: #f44336;
+}
+
+.sync-indicator.offline {
+  color: #ff9800;
+}
+
+.sync-icon.spinning {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .tabs-container {
   display: flex;
   flex: 1;
