@@ -57,6 +57,10 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- Set REPLICA IDENTITY to FULL for DELETE events in Realtime
+-- This is required for Supabase Realtime to capture the old row data for DELETE events
+ALTER TABLE notes REPLICA IDENTITY FULL;
+
 -- Updated_at trigger (idempotent)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

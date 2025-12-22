@@ -42,6 +42,7 @@ class SyncService {
   // Callbacks for state changes
   private stateChangeCallbacks: Set<(state: SyncState) => void> = new Set()
   private noteUpdateCallbacks: Set<(notes: TabData[]) => void> = new Set()
+  private noteDeletionCallbacks: Set<(noteId: string) => void> = new Set()
 
   /**
    * Initializes the sync service
@@ -318,8 +319,8 @@ class SyncService {
             localStorageService.removeTab(localId)
             this.localToCloudIdMap.delete(localId)
             
-            // Notify to close tab if open
-            this.triggerNoteUpdate([])
+            // Notify to remove tab from UI
+            this.triggerNoteDeletion(localId)
           }
           break
         }
@@ -520,6 +521,13 @@ class SyncService {
   }
 
   /**
+   * Triggers note deletion callbacks
+   */
+  private triggerNoteDeletion(noteId: string): void {
+    this.noteDeletionCallbacks.forEach((callback) => callback(noteId))
+  }
+
+  /**
    * Subscribes to sync state changes
    */
   onSyncStateChange(callback: (state: SyncState) => void): () => void {
@@ -538,6 +546,17 @@ class SyncService {
     // Return unsubscribe function
     return () => {
       this.noteUpdateCallbacks.delete(callback)
+    }
+  }
+
+  /**
+   * Subscribes to note deletions from sync
+   */
+  onNoteDeletion(callback: (noteId: string) => void): () => void {
+    this.noteDeletionCallbacks.add(callback)
+    // Return unsubscribe function
+    return () => {
+      this.noteDeletionCallbacks.delete(callback)
     }
   }
 
@@ -572,6 +591,7 @@ class SyncService {
     this.isInitialized = false
     this.stateChangeCallbacks.clear()
     this.noteUpdateCallbacks.clear()
+    this.noteDeletionCallbacks.clear()
   }
 }
 

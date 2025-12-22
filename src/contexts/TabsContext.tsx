@@ -378,7 +378,7 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
   useEffect(() => {
     const unsubscribe = syncService.onNoteUpdate((updatedNotes) => {
       if (updatedNotes.length === 0) {
-        // Handle note deletion from another device
+        // Empty update - nothing to do
         return
       }
 
@@ -404,6 +404,50 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     })
     return unsubscribe
   }, [])
+
+  // Subscribe to note deletions from sync (cloud changes)
+  useEffect(() => {
+    const unsubscribe = syncService.onNoteDeletion((deletedNoteId) => {
+      console.log('Received deletion event for note:', deletedNoteId)
+      
+      setTabs((prevTabs) => {
+        const filtered = prevTabs.filter((tab) => tab.id !== deletedNoteId)
+        
+        // If deleting the last tab, create a new one
+        if (filtered.length === 0) {
+          const newTab: TabData = {
+            id: `tab-${Date.now()}`,
+            title: 'Untitled',
+            content: '',
+          }
+          setActiveTabId(newTab.id)
+          return [newTab]
+        }
+        
+        // Switch to another tab if deleting active tab
+        if (activeTabId === deletedNoteId) {
+          const currentIndex = prevTabs.findIndex((tab) => tab.id === deletedNoteId)
+          const newIndex = currentIndex > 0 ? currentIndex - 1 : 0
+          setActiveTabId(filtered[newIndex]?.id || filtered[0].id)
+        }
+        
+        return filtered
+      })
+      
+      // Clean up save state and last saved state
+      setSaveState((prev) => {
+        const newState = new Map(prev)
+        newState.delete(deletedNoteId)
+        return newState
+      })
+      setLastSavedState((prev) => {
+        const newState = new Map(prev)
+        newState.delete(deletedNoteId)
+        return newState
+      })
+    })
+    return unsubscribe
+  }, [activeTabId])
 
   // Queue notes for cloud sync after local save (only if authenticated)
   useEffect(() => {
