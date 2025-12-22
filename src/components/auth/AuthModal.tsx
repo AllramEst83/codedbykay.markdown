@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuthStore } from '../../contexts/AuthContext';
+import type { AuthMode } from '../../types/modes';
 import './auth.css';
-
-type Mode = 'login' | 'register' | 'forgot';
 
 export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { theme } = useTheme();
@@ -14,7 +13,7 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
   const signup = useAuthStore((s) => s.signup);
   const resetPassword = useAuthStore((s) => s.resetPassword);
 
-  const [mode, setMode] = useState<Mode>('login');
+  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
