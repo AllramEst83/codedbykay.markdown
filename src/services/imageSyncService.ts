@@ -6,10 +6,7 @@
 import { getSupabaseClient } from '../supabase/client'
 import { uploadImage, deleteImage } from './cloudStorageService'
 import { 
-  storeImage, 
-  getImageIdFromUrl, 
   getImageUrl,
-  deleteImage as deleteLocalImage,
   getAllStoredImages 
 } from '../utils/imageStorage'
 import { openDB, IDBPDatabase } from 'idb'

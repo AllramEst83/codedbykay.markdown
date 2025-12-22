@@ -6,7 +6,7 @@
 import { getSupabaseClient } from '../supabase/client'
 import { localStorageService } from './localStorageService'
 import * as cloudStorage from './cloudStorageService'
-import { resolveConflict, shouldUploadToCloud, shouldDownloadFromCloud } from './conflictResolver'
+import { resolveConflict } from './conflictResolver'
 import { syncImageReferencesInContent, migrateAllImagesToCloud, prefetchImagesInContent } from './imageSyncService'
 import { getDeviceId } from '../utils/deviceId'
 import type { TabData } from '../types/services'
