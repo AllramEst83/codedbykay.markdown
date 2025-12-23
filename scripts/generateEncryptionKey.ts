@@ -22,3 +22,4 @@ function generateEncryptionKey(): void {
 // Run the generator
 generateEncryptionKey();
 
+

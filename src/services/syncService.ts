@@ -35,6 +35,8 @@ class SyncService {
   private isInitialized = false
   private isSyncing = false
   private deviceId: string = getDeviceId()
+  private currentUserId: string | null = null
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null
   
   // Map of local tab IDs to cloud note IDs
   private localToCloudIdMap: Map<string, string> = new Map()
@@ -51,10 +53,12 @@ class SyncService {
   async initialize(userId: string): Promise<void> {
     if (this.isInitialized) {
       console.log('Sync service already initialized')
+      this.currentUserId = userId // Ensure we always have the latest userId
       return
     }
 
     console.log('Initializing sync service...')
+    this.currentUserId = userId
     this.updateSyncState({ status: 'syncing' })
 
     try {
@@ -202,6 +206,12 @@ class SyncService {
   private async setupRealtimeSubscription(userId: string): Promise<void> {
     const supabase = getSupabaseClient()
 
+    // Clean up any existing channel before creating a new one
+    if (this.realtimeChannel) {
+      this.realtimeChannel.unsubscribe()
+      this.realtimeChannel = null
+    }
+
     this.realtimeChannel = supabase
       .channel('notes-changes')
       .on(
@@ -217,11 +227,89 @@ class SyncService {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('Realtime subscription active')
+          // If we were in error/offline state, consider ourselves healthy again
+          if (this.syncState.status === 'error' || this.syncState.status === 'offline') {
+            this.updateSyncState({
+              status: this.syncQueue.size > 0 ? 'syncing' : 'synced',
+              lastSync: Date.now(),
+            })
+          }
         } else if (status === 'CHANNEL_ERROR') {
           console.error('Realtime subscription error')
-          this.updateSyncState({ status: 'error' })
+          this.handleRealtimeChannelError()
         }
       })
+  }
+
+  /**
+   * Handles realtime channel errors and schedules reconnection
+   */
+  private handleRealtimeChannelError(): void {
+    // Mark as error (drives red icon), but also schedule a reconnect attempt
+    this.updateSyncState({ status: 'error' })
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = null
+    }
+
+    // Schedule reconnection attempt with exponential backoff
+    // Start with 5 seconds, but this will be overridden by visibility/focus events
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null
+      this.reconnectIfNeeded()
+    }, 5000)
+  }
+
+  /**
+   * Public method to reconnect sync service when app becomes visible or online
+   * Can be called from React components on visibilitychange, focus, or online events
+   */
+  async reconnectIfNeeded(): Promise<void> {
+    if (!this.isInitialized || !this.currentUserId) {
+      return
+    }
+
+    // Check if we're actually online
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      this.updateSyncState({ status: 'offline' })
+      return
+    }
+
+    // Only reconnect if we're in an error or offline state
+    if (this.syncState.status !== 'error' && this.syncState.status !== 'offline') {
+      return
+    }
+
+    try {
+      console.log('Attempting sync service reconnect...')
+      this.updateSyncState({ status: 'syncing' })
+
+      // Re-establish realtime subscription
+      await this.setupRealtimeSubscription(this.currentUserId)
+      
+      // Process any pending queue items
+      await this.processSyncQueue()
+
+      // Update state based on queue status
+      this.updateSyncState({
+        status: this.syncQueue.size > 0 ? 'syncing' : 'synced',
+        lastSync: Date.now(),
+      })
+      console.log('Sync service reconnect successful')
+    } catch (error) {
+      console.error('Sync service reconnect failed:', error)
+      this.updateSyncState({ status: 'error' })
+    }
+  }
+
+  /**
+   * Sets sync state to offline (called when network goes offline)
+   */
+  setOffline(): void {
+    if (this.isInitialized) {
+      this.updateSyncState({ status: 'offline' })
+    }
   }
 
   /**
@@ -369,6 +457,12 @@ class SyncService {
    */
   private async processSyncQueue(): Promise<void> {
     if (this.isSyncing || this.syncQueue.size === 0) {
+      return
+    }
+
+    // Don't process queue if we're offline
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      this.updateSyncState({ status: 'offline' })
       return
     }
 
@@ -588,7 +682,13 @@ class SyncService {
       this.syncTimeout = null
     }
 
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = null
+    }
+
     this.isInitialized = false
+    this.currentUserId = null
     this.stateChangeCallbacks.clear()
     this.noteUpdateCallbacks.clear()
     this.noteDeletionCallbacks.clear()

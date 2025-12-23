@@ -7,6 +7,7 @@ import MobileToolbar from './components/MobileToolbar'
 import MobileViewToggle from './components/MobileViewToggle'
 import Spinner from './components/Spinner'
 import ImageManager from './components/ImageManager'
+import SyncLifecycle from './components/SyncLifecycle'
 import { useTheme } from './contexts/ThemeContext'
 import { useTabs } from './contexts/TabsContext'
 import { useDebounce } from './hooks/useDebounce'
@@ -221,6 +222,7 @@ function App() {
         '--app-border-color': previewTheme.borderColor,
       } as React.CSSProperties}
     >
+      <SyncLifecycle />
       <TabBar />
       {isMobile && (
         <MobileViewToggle 

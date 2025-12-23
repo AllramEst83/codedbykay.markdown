@@ -22,3 +22,4 @@ function generateSalt(): void {
 // Run the generator
 generateSalt();
 
+
