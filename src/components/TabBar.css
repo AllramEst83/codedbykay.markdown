@@ -17,6 +17,7 @@
   transition: all 0.2s ease;
   background: transparent;
   border: none;
+  border-left: 1px solid var(--tab-border, #333);
   cursor: pointer;
 }
 
@@ -198,6 +199,96 @@
   flex-shrink: 0;
 }
 
+@media (max-width: 768px) {
+  .tab-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tab-actions {
+    order: 1;
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+    border-bottom: 1px solid var(--tab-border, #333);
+    min-height: 36px;
+  }
+
+  .tabs-container {
+    order: 2;
+    width: 100%;
+    flex: none;
+  }
+
+  /* Make all action buttons stretch to full height */
+  .tab-actions > * {
+    align-self: stretch;
+    height: 100%;
+    border-left: none !important;
+    border-right: 1px solid var(--tab-border, #333) !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  /* Add left border to first element */
+  .tab-actions > *:first-child {
+    border-left: 1px solid var(--tab-border, #333) !important;
+  }
+
+  /* Remove right border from last element */
+  .tab-actions > *:last-child {
+    border-right: none !important;
+  }
+
+  /* Ensure buttons stretch to full height - override fixed heights */
+  .tab-actions .sync-indicator {
+    height: 100%;
+    align-self: stretch;
+    margin-right: 0;
+    border-radius: 0 !important; /* Remove border radius to ensure clean borders */
+    border-top: none !important;
+    border-bottom: none !important;
+    border-left: 1px solid var(--tab-border, #333) !important;
+    /* border-right is applied by .tab-actions > * rule above */
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  .tab-actions .tab-action {
+    height: 100%;
+    align-self: stretch;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  /* When authenticated, AuthButton wraps the actual button in .authMenu.
+     Remove the inner button border so we don't get a visually thicker divider. */
+  .tab-actions .authMenu .tab-action {
+    border: none !important;
+  }
+
+  .tab-actions .tab-help,
+  .tab-actions .tab-add {
+    height: 100%;
+    align-self: stretch;
+    width: 36px; /* Keep width but allow height to stretch */
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  .tab {
+    min-width: 120px;
+    max-width: 200px;
+    padding: 6px 10px;
+  }
+  
+  .save-text {
+    display: none;
+  }
+}
+
 .tab-action {
   display: flex;
   align-items: center;
@@ -259,14 +350,3 @@
   }
 }
 
-@media (max-width: 768px) {
-  .tab {
-    min-width: 120px;
-    max-width: 200px;
-    padding: 6px 10px;
-  }
-  
-  .save-text {
-    display: none;
-  }
-}
