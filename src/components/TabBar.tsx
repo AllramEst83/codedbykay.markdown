@@ -105,6 +105,83 @@ If you clear your browser data while logged out, your notes will be lost. Log in
     })
   }, [showModal])
 
+  const formatLastSync = (timestamp: number | null): string => {
+    if (!timestamp) {
+      return 'Never'
+    }
+    
+    const now = Date.now()
+    const diff = now - timestamp
+    const seconds = Math.floor(diff / 1000)
+    const minutes = Math.floor(seconds / 60)
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+    
+    if (seconds < 60) {
+      return 'Just now'
+    } else if (minutes < 60) {
+      return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
+    } else if (hours < 24) {
+      return `${hours} hour${hours === 1 ? '' : 's'} ago`
+    } else if (days < 7) {
+      return `${days} day${days === 1 ? '' : 's'} ago`
+    } else {
+      return new Date(timestamp).toLocaleDateString()
+    }
+  }
+
+  const handleShowSyncStatus = useCallback(async () => {
+    if (!isAuthenticated) {
+      return
+    }
+
+    const { status, pendingChanges, lastSync } = syncState
+
+    let statusText = ''
+    let statusDetails = ''
+
+    switch (status) {
+      case 'syncing':
+        statusText = 'Syncing...'
+        statusDetails = pendingChanges > 0 
+          ? `Syncing ${pendingChanges} change${pendingChanges === 1 ? '' : 's'} to the cloud.`
+          : 'Synchronizing your notes with the cloud.'
+        break
+      case 'synced':
+        statusText = 'Synced'
+        statusDetails = 'All your notes are synchronized with the cloud.'
+        break
+      case 'error':
+        statusText = 'Sync Error'
+        statusDetails = 'There was an error syncing your notes. The app will automatically retry.'
+        break
+      case 'offline':
+        statusText = 'Offline'
+        statusDetails = 'You are currently offline. Changes will sync automatically when you reconnect.'
+        break
+      case 'idle':
+        statusText = 'Idle'
+        statusDetails = 'Sync service is idle.'
+        break
+      default:
+        statusText = 'Unknown'
+        statusDetails = 'Sync status is unknown.'
+    }
+
+    const message = `Sync Status: ${statusText}
+
+${statusDetails}
+
+${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${formatLastSync(lastSync)}`
+
+    await showModal({
+      type: 'alert',
+      title: 'Sync Status',
+      message: message,
+      confirmText: 'OK'
+    })
+  }, [isAuthenticated, syncState, showModal])
+
   const getSyncIndicator = () => {
     if (!isAuthenticated) {
       return null
@@ -142,9 +219,14 @@ If you clear your browser data while logged out, your notes will be lost. Log in
     }
 
     return (
-      <div className={className} title={title}>
+      <button 
+        className={className} 
+        title={title}
+        onClick={handleShowSyncStatus}
+        aria-label="Show sync status"
+      >
         {icon}
-      </div>
+      </button>
     )
   }
 
