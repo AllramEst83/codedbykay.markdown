@@ -19,24 +19,24 @@ const MobileViewToggleComponent = ({ viewMode, onViewModeChange }: MobileViewTog
         '--toggle-border': previewTheme.borderColor,
       } as React.CSSProperties}
     >
-      <button
-        className={`mobile-view-toggle-button ${viewMode === 'editor' ? 'active' : ''}`}
-        onClick={() => onViewModeChange('editor')}
-        aria-label="Editor view"
-        title="Editor"
-      >
-        <Edit size={18} />
-        <span>Editor</span>
-      </button>
-      <button
-        className={`mobile-view-toggle-button ${viewMode === 'preview' ? 'active' : ''}`}
-        onClick={() => onViewModeChange('preview')}
-        aria-label="Preview view"
-        title="Preview"
-      >
-        <Eye size={18} />
-        <span>Preview</span>
-      </button>
+      <div className="mobile-view-toggle-container">
+        <button
+          className={`mobile-view-toggle-button ${viewMode === 'editor' ? 'active' : ''}`}
+          onClick={() => onViewModeChange('editor')}
+          aria-label="Editor view"
+          title="Editor"
+        >
+          <Edit size={16} />
+        </button>
+        <button
+          className={`mobile-view-toggle-button ${viewMode === 'preview' ? 'active' : ''}`}
+          onClick={() => onViewModeChange('preview')}
+          aria-label="Preview view"
+          title="Preview"
+        >
+          <Eye size={16} />
+        </button>
+      </div>
     </div>
   )
 }
