@@ -3,7 +3,7 @@ import { useTabs } from '../contexts/TabsContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
 import { useAuthStore } from '../contexts/AuthContext'
-import { HelpCircle, Cloud, CloudOff, AlertCircle } from 'lucide-react'
+import { HelpCircle, Cloud, CloudOff, AlertCircle, RotateCw } from 'lucide-react'
 import AuthButton from './auth/AuthButton'
 import './TabBar.css'
 
@@ -118,7 +118,7 @@ If you clear your browser data while logged out, your notes will be lost. Log in
 
     switch (status) {
       case 'syncing':
-        icon = <Cloud size={14} className="sync-icon spinning" />
+        icon = <RotateCw size={14} className="sync-icon spinning" />
         title = `Syncing${pendingChanges > 0 ? ` (${pendingChanges} pending)` : ''}...`
         className += ' syncing'
         break
