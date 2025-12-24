@@ -326,7 +326,7 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
     }
   }
 
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     if (draggedTabId === null) return
 
@@ -495,7 +495,7 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
             onDragStart={(e) => handleDragStart(e, tab.id)}
             onDragOver={(e) => handleDragOver(e, index)}
             onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, index)}
+            onDrop={handleDrop}
             onDragEnd={handleDragEnd}
             onTouchStart={(e) => handleTouchStart(e, tab.id, index)}
             onClick={() => {
