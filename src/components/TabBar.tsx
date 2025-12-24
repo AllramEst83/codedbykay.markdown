@@ -8,13 +8,26 @@ import AuthButton from './auth/AuthButton'
 import './TabBar.css'
 
 const TabBarComponent = () => {
-  const { tabs, activeTabId, addTab, closeTab, switchTab, updateTabTitle, saveState, syncState } = useTabs()
+  const { tabs, activeTabId, addTab, closeTab, switchTab, updateTabTitle, reorderTabs, saveState, syncState } = useTabs()
   const { previewTheme } = useTheme()
   const { showModal } = useModal()
   const isAuthenticated = useAuthStore((state) => state.status === 'authenticated')
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  
+  // Drag and drop state
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [touchDragState, setTouchDragState] = useState<{
+    tabId: string | null
+    startX: number
+    currentX: number
+    tabIndex: number
+    hasMoved: boolean
+  } | null>(null)
+  const tabRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const clickBlockedRef = useRef(false)
 
   useEffect(() => {
     if (editingTabId && inputRef.current) {
@@ -246,6 +259,206 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
     }
   }
 
+  // Desktop drag handlers
+  const handleDragStart = (e: React.DragEvent, tabId: string) => {
+    if (editingTabId === tabId) {
+      e.preventDefault()
+      return
+    }
+    setDraggedTabId(tabId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/html', tabId)
+    // Add a slight delay to allow drag image to be set
+    setTimeout(() => {
+      if (e.dataTransfer) {
+        e.dataTransfer.setDragImage(new Image(), 0, 0)
+      }
+    }, 0)
+  }
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    
+    if (draggedTabId === null) return
+    
+    const dragIndex = tabs.findIndex(tab => tab.id === draggedTabId)
+    if (dragIndex === -1) return
+    
+    // Calculate drop position based on mouse position within the tab
+    const rect = e.currentTarget.getBoundingClientRect()
+    const midpoint = rect.left + rect.width / 2
+    
+    // Determine if dropping before or after this tab
+    let targetIndex: number
+    if (e.clientX < midpoint) {
+      // Dropping before this tab
+      targetIndex = index
+    } else {
+      // Dropping after this tab
+      targetIndex = index + 1
+    }
+    
+    // Adjust target index if dragging from left to right (account for removed element)
+    if (dragIndex < targetIndex) {
+      targetIndex = targetIndex - 1
+    }
+    
+    // Clamp to valid range
+    targetIndex = Math.max(0, Math.min(targetIndex, tabs.length - 1))
+    
+    // Only update if different from current drag index
+    if (targetIndex !== dragIndex) {
+      setDragOverIndex(targetIndex)
+    }
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear if we're leaving the tabs container, not just moving between tabs
+    const rect = e.currentTarget.getBoundingClientRect()
+    if (
+      e.clientX < rect.left ||
+      e.clientX > rect.right ||
+      e.clientY < rect.top ||
+      e.clientY > rect.bottom
+    ) {
+      setDragOverIndex(null)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault()
+    if (draggedTabId === null) return
+
+    const dragIndex = tabs.findIndex(tab => tab.id === draggedTabId)
+    if (dragIndex === -1) return
+    
+    // Use the dragOverIndex which was calculated in handleDragOver
+    const targetIndex = dragOverIndex !== null ? dragOverIndex : dragIndex
+    
+    if (dragIndex !== targetIndex) {
+      reorderTabs(dragIndex, targetIndex)
+    }
+
+    setDraggedTabId(null)
+    setDragOverIndex(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedTabId(null)
+    setDragOverIndex(null)
+  }
+
+  // Mobile touch handlers
+  const handleTouchStart = (e: React.TouchEvent, tabId: string, index: number) => {
+    if (editingTabId === tabId) return // Don't drag if editing
+    
+    const touch = e.touches[0]
+    const tabElement = tabRefs.current.get(tabId)
+    if (!tabElement) return
+
+    clickBlockedRef.current = false
+    setTouchDragState({
+      tabId,
+      startX: touch.clientX,
+      currentX: touch.clientX,
+      tabIndex: index,
+      hasMoved: false,
+    })
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchDragState) return
+
+    const touch = e.touches[0]
+    const deltaX = Math.abs(touch.clientX - touchDragState.startX)
+    
+    // Only start dragging if moved more than 10px (prevents accidental drags)
+    if (deltaX < 10 && !touchDragState.hasMoved) return
+
+    e.preventDefault() // Prevent scrolling while dragging
+    e.stopPropagation()
+    
+    if (!touchDragState.hasMoved) {
+      clickBlockedRef.current = true
+    }
+    
+    setTouchDragState(prev => prev ? {
+      ...prev,
+      currentX: touch.clientX,
+      hasMoved: true,
+    } : null)
+
+    // Find which tab we're over
+    const tabsContainer = e.currentTarget as HTMLElement
+    if (!tabsContainer) return
+
+    const touchX = touch.clientX
+    const tabElements = Array.from(tabsContainer.querySelectorAll('.tab')) as HTMLElement[]
+    
+    let targetIndex: number | null = null
+    
+    for (let i = 0; i < tabElements.length; i++) {
+      const rect = tabElements[i].getBoundingClientRect()
+      const midpoint = rect.left + rect.width / 2
+      
+      if (touchX >= rect.left && touchX < midpoint) {
+        targetIndex = i
+        break
+      } else if (touchX >= midpoint && touchX < rect.right) {
+        targetIndex = i + 1
+        break
+      }
+    }
+    
+    // Handle case when dragging past the last tab
+    if (targetIndex === null && tabElements.length > 0) {
+      const lastRect = tabElements[tabElements.length - 1].getBoundingClientRect()
+      if (touchX >= lastRect.right) {
+        targetIndex = tabElements.length
+      } else {
+        targetIndex = 0
+      }
+    }
+    
+    if (targetIndex !== null) {
+      // Adjust target index if dragging from left to right (account for removed element)
+      let adjustedIndex = targetIndex
+      if (touchDragState.tabIndex < targetIndex) {
+        adjustedIndex = targetIndex - 1
+      }
+      
+      // Clamp to valid range
+      adjustedIndex = Math.max(0, Math.min(adjustedIndex, tabs.length - 1))
+      
+      // Only update if different from current drag index
+      if (adjustedIndex !== touchDragState.tabIndex) {
+        setDragOverIndex(adjustedIndex)
+      }
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (!touchDragState) return
+
+    const dragIndex = touchDragState.tabIndex
+    const dropIndex = dragOverIndex !== null ? dragOverIndex : dragIndex
+
+    if (touchDragState.hasMoved && dragIndex !== dropIndex && dropIndex >= 0 && dropIndex < tabs.length) {
+      reorderTabs(dragIndex, dropIndex)
+    }
+
+    // Reset click block after a short delay
+    if (clickBlockedRef.current) {
+      setTimeout(() => {
+        clickBlockedRef.current = false
+      }, 100)
+    }
+
+    setTouchDragState(null)
+    setDragOverIndex(null)
+  }
+
   return (
     <div 
       className="tab-bar"
@@ -258,12 +471,39 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
         '--tab-border': previewTheme.borderColor,
       } as React.CSSProperties}
     >
-      <div className="tabs-container">
-        {tabs.map((tab) => (
+      <div 
+        className="tabs-container"
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {tabs.map((tab, index) => (
           <div
             key={tab.id}
-            className={`tab ${activeTabId === tab.id ? 'active' : ''}`}
-            onClick={() => switchTab(tab.id)}
+            ref={(el) => {
+              if (el) {
+                tabRefs.current.set(tab.id, el)
+              } else {
+                tabRefs.current.delete(tab.id)
+              }
+            }}
+            className={`tab ${activeTabId === tab.id ? 'active' : ''} ${
+              draggedTabId === tab.id ? 'dragging' : ''
+            } ${dragOverIndex === index ? 'drag-over' : ''} ${
+              touchDragState?.tabId === tab.id ? 'touch-dragging' : ''
+            }`}
+            draggable={editingTabId !== tab.id}
+            onDragStart={(e) => handleDragStart(e, tab.id)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, index)}
+            onDragEnd={handleDragEnd}
+            onTouchStart={(e) => handleTouchStart(e, tab.id, index)}
+            onClick={() => {
+              // Don't switch tab if we just finished dragging or are currently dragging
+              if (!clickBlockedRef.current && !touchDragState && draggedTabId === null) {
+                switchTab(tab.id)
+              }
+            }}
             onDoubleClick={() => handleDoubleClick(tab.id, tab.title)}
           >
             {editingTabId === tab.id ? (

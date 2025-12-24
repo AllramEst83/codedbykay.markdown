@@ -319,6 +319,15 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     )
   }, [])
 
+  const reorderTabs = useCallback((fromIndex: number, toIndex: number) => {
+    setTabs((prev) => {
+      const newTabs = [...prev]
+      const [removed] = newTabs.splice(fromIndex, 1)
+      newTabs.splice(toIndex, 0, removed)
+      return newTabs
+    })
+  }, [])
+
   const saveTab = useCallback((tabId: string) => {
     const tab = tabs.find((t) => t.id === tabId)
     if (tab) {
@@ -486,6 +495,7 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
         updateTabContent,
         updateTabTitle,
         saveTab,
+        reorderTabs,
         saveState,
         syncState,
       }}
