@@ -95,15 +95,6 @@
   max-width: 280px;
   position: relative;
   transition: all 0.2s ease;
-  touch-action: none;
-}
-
-.tab[draggable="true"] {
-  cursor: grab;
-}
-
-.tab[draggable="true"]:active {
-  cursor: grabbing;
 }
 
 .tab:hover {
@@ -118,7 +109,6 @@
 
 .tab.dragging {
   opacity: 0.5;
-  cursor: grabbing;
 }
 
 .tab.drag-over {
@@ -126,12 +116,39 @@
   padding-left: 9px;
 }
 
-.tab.touch-dragging {
-  opacity: 0.7;
-  transform: scale(1.05);
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  position: relative;
+.tab-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  color: inherit;
+  cursor: grab;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.tab-drag-handle:active {
+  cursor: grabbing;
+}
+
+.tab:hover .tab-drag-handle {
+  opacity: 0.8;
+}
+
+.tab-drag-handle:hover {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .tab-drag-handle {
+    display: none;
+  }
 }
 
 .tab-title {
@@ -374,5 +391,59 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.tab-reorder-menu {
+  position: fixed;
+  z-index: 10000;
+  border: 1px solid var(--tab-border, #333);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 180px;
+  overflow: hidden;
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+}
+
+.tab-reorder-menu-title {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tab-text, #cccccc);
+  border-bottom: 1px solid var(--tab-border, #333);
+  background-color: var(--tab-bg, #2d2d30);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-reorder-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background-color: var(--tab-bg, #2d2d30);
+  border: none;
+  border-bottom: 1px solid var(--tab-border, #333);
+  color: var(--tab-text, #cccccc);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  text-align: left;
+}
+
+.tab-reorder-menu-item:last-child {
+  border-bottom: none;
+}
+
+.tab-reorder-menu-item:hover:not(:disabled) {
+  background-color: var(--tab-active-bg, #37373d);
+}
+
+.tab-reorder-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 

@@ -3,7 +3,7 @@ import { useTabs } from '../contexts/TabsContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
 import { useAuthStore } from '../contexts/AuthContext'
-import { HelpCircle, Cloud, CloudOff, AlertCircle, RotateCw } from 'lucide-react'
+import { HelpCircle, Cloud, CloudOff, AlertCircle, RotateCw, GripVertical, ChevronLeft, ChevronRight } from 'lucide-react'
 import AuthButton from './auth/AuthButton'
 import './TabBar.css'
 
@@ -16,18 +16,17 @@ const TabBarComponent = () => {
   const [editingTitle, setEditingTitle] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   
-  // Drag and drop state
+  // Drag and drop state (desktop only - drag handle)
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
-  const [touchDragState, setTouchDragState] = useState<{
-    tabId: string | null
-    startX: number
-    currentX: number
-    tabIndex: number
-    hasMoved: boolean
-  } | null>(null)
+  
+  // Mobile long-press menu state
+  const [longPressMenuTabId, setLongPressMenuTabId] = useState<string | null>(null)
+  const [longPressMenuPosition, setLongPressMenuPosition] = useState<{ x: number; y: number } | null>(null)
+  
   const tabRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const clickBlockedRef = useRef(false)
+  const tabsContainerRef = useRef<HTMLDivElement>(null)
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (editingTabId && inputRef.current) {
@@ -89,6 +88,9 @@ const TabBarComponent = () => {
 BASIC USAGE:
 • Create new tabs by clicking the + button
 • Double-click a tab title to rename it
+• Drag the grip icon (⋮⋮) to reorder tabs (desktop)
+• Long-press a tab to reorder on mobile
+• Scroll horizontally to see all tabs
 • Use the toolbar buttons to format your text
 • Your markdown is automatically rendered in the preview pane
 
@@ -259,7 +261,7 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
     }
   }
 
-  // Desktop drag handlers
+  // Desktop drag handlers (drag handle only)
   const handleDragStart = (e: React.DragEvent, tabId: string) => {
     if (editingTabId === tabId) {
       e.preventDefault()
@@ -349,115 +351,73 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
     setDragOverIndex(null)
   }
 
-  // Mobile touch handlers
-  const handleTouchStart = (e: React.TouchEvent, tabId: string, index: number) => {
-    if (editingTabId === tabId) return // Don't drag if editing
+  // Mobile long-press handlers for reorder menu
+  const handleTouchStart = (e: React.TouchEvent, tabId: string) => {
+    if (editingTabId === tabId) return
     
     const touch = e.touches[0]
-    const tabElement = tabRefs.current.get(tabId)
-    if (!tabElement) return
-
-    clickBlockedRef.current = false
-    setTouchDragState({
-      tabId,
-      startX: touch.clientX,
-      currentX: touch.clientX,
-      tabIndex: index,
-      hasMoved: false,
-    })
+    
+    // Start long-press timer
+    longPressTimerRef.current = setTimeout(() => {
+      setLongPressMenuTabId(tabId)
+      setLongPressMenuPosition({ x: touch.clientX, y: touch.clientY })
+    }, 500) // 500ms long press
   }
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchDragState) return
-
-    const touch = e.touches[0]
-    const deltaX = Math.abs(touch.clientX - touchDragState.startX)
-    
-    // Only start dragging if moved more than 10px (prevents accidental drags)
-    if (deltaX < 10 && !touchDragState.hasMoved) return
-
-    e.preventDefault() // Prevent scrolling while dragging
-    e.stopPropagation()
-    
-    if (!touchDragState.hasMoved) {
-      clickBlockedRef.current = true
-    }
-    
-    setTouchDragState(prev => prev ? {
-      ...prev,
-      currentX: touch.clientX,
-      hasMoved: true,
-    } : null)
-
-    // Find which tab we're over
-    const tabsContainer = e.currentTarget as HTMLElement
-    if (!tabsContainer) return
-
-    const touchX = touch.clientX
-    const tabElements = Array.from(tabsContainer.querySelectorAll('.tab')) as HTMLElement[]
-    
-    let targetIndex: number | null = null
-    
-    for (let i = 0; i < tabElements.length; i++) {
-      const rect = tabElements[i].getBoundingClientRect()
-      const midpoint = rect.left + rect.width / 2
-      
-      if (touchX >= rect.left && touchX < midpoint) {
-        targetIndex = i
-        break
-      } else if (touchX >= midpoint && touchX < rect.right) {
-        targetIndex = i + 1
-        break
-      }
-    }
-    
-    // Handle case when dragging past the last tab
-    if (targetIndex === null && tabElements.length > 0) {
-      const lastRect = tabElements[tabElements.length - 1].getBoundingClientRect()
-      if (touchX >= lastRect.right) {
-        targetIndex = tabElements.length
-      } else {
-        targetIndex = 0
-      }
-    }
-    
-    if (targetIndex !== null) {
-      // Adjust target index if dragging from left to right (account for removed element)
-      let adjustedIndex = targetIndex
-      if (touchDragState.tabIndex < targetIndex) {
-        adjustedIndex = targetIndex - 1
-      }
-      
-      // Clamp to valid range
-      adjustedIndex = Math.max(0, Math.min(adjustedIndex, tabs.length - 1))
-      
-      // Only update if different from current drag index
-      if (adjustedIndex !== touchDragState.tabIndex) {
-        setDragOverIndex(adjustedIndex)
-      }
+  const handleTouchMove = () => {
+    // Cancel long-press if user moves finger
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
     }
   }
 
   const handleTouchEnd = () => {
-    if (!touchDragState) return
-
-    const dragIndex = touchDragState.tabIndex
-    const dropIndex = dragOverIndex !== null ? dragOverIndex : dragIndex
-
-    if (touchDragState.hasMoved && dragIndex !== dropIndex && dropIndex >= 0 && dropIndex < tabs.length) {
-      reorderTabs(dragIndex, dropIndex)
+    // Cancel long-press timer
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
     }
-
-    // Reset click block after a short delay
-    if (clickBlockedRef.current) {
-      setTimeout(() => {
-        clickBlockedRef.current = false
-      }, 100)
-    }
-
-    setTouchDragState(null)
-    setDragOverIndex(null)
   }
+
+  // Handle reorder actions from mobile menu
+  const handleMoveTab = (tabId: string, direction: 'left' | 'right') => {
+    const currentIndex = tabs.findIndex(tab => tab.id === tabId)
+    if (currentIndex === -1) return
+
+    let targetIndex: number
+    if (direction === 'left') {
+      targetIndex = Math.max(0, currentIndex - 1)
+    } else {
+      targetIndex = Math.min(tabs.length - 1, currentIndex + 1)
+    }
+
+    if (currentIndex !== targetIndex) {
+      reorderTabs(currentIndex, targetIndex)
+    }
+
+    setLongPressMenuTabId(null)
+    setLongPressMenuPosition(null)
+  }
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (longPressMenuTabId) {
+        setLongPressMenuTabId(null)
+        setLongPressMenuPosition(null)
+      }
+    }
+
+    if (longPressMenuTabId) {
+      document.addEventListener('click', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside)
+      return () => {
+        document.removeEventListener('click', handleClickOutside)
+        document.removeEventListener('touchstart', handleClickOutside)
+      }
+    }
+  }, [longPressMenuTabId])
 
   return (
     <div 
@@ -472,9 +432,8 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
       } as React.CSSProperties}
     >
       <div 
+        ref={tabsContainerRef}
         className="tabs-container"
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
         {tabs.map((tab, index) => (
           <div
@@ -488,24 +447,34 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
             }}
             className={`tab ${activeTabId === tab.id ? 'active' : ''} ${
               draggedTabId === tab.id ? 'dragging' : ''
-            } ${dragOverIndex === index ? 'drag-over' : ''} ${
-              touchDragState?.tabId === tab.id ? 'touch-dragging' : ''
-            }`}
-            draggable={editingTabId !== tab.id}
-            onDragStart={(e) => handleDragStart(e, tab.id)}
+            } ${dragOverIndex === index ? 'drag-over' : ''}`}
             onDragOver={(e) => handleDragOver(e, index)}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onDragEnd={handleDragEnd}
-            onTouchStart={(e) => handleTouchStart(e, tab.id, index)}
+            onTouchStart={(e) => handleTouchStart(e, tab.id)}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             onClick={() => {
-              // Don't switch tab if we just finished dragging or are currently dragging
-              if (!clickBlockedRef.current && !touchDragState && draggedTabId === null) {
+              if (draggedTabId === null) {
                 switchTab(tab.id)
               }
             }}
             onDoubleClick={() => handleDoubleClick(tab.id, tab.title)}
           >
+            {/* Drag handle - desktop only */}
+            {editingTabId !== tab.id && (
+              <button
+                className="tab-drag-handle"
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, tab.id)}
+                onDragEnd={handleDragEnd}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Drag to reorder"
+                title="Drag to reorder tab"
+              >
+                <GripVertical size={12} />
+              </button>
+            )}
             {editingTabId === tab.id ? (
               <input
                 ref={inputRef}
@@ -534,6 +503,40 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
           </div>
         ))}
       </div>
+      {/* Mobile reorder menu */}
+      {longPressMenuTabId && longPressMenuPosition && (
+        <div 
+          className="tab-reorder-menu"
+          style={{
+            position: 'fixed',
+            left: `${longPressMenuPosition.x}px`,
+            top: `${longPressMenuPosition.y}px`,
+            backgroundColor: previewTheme.tabBarBg,
+            borderColor: previewTheme.borderColor,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="tab-reorder-menu-title">
+            {tabs.find(t => t.id === longPressMenuTabId)?.title}
+          </div>
+          <button
+            className="tab-reorder-menu-item"
+            onClick={() => handleMoveTab(longPressMenuTabId, 'left')}
+            disabled={tabs.findIndex(t => t.id === longPressMenuTabId) === 0}
+          >
+            <ChevronLeft size={16} />
+            Move Left
+          </button>
+          <button
+            className="tab-reorder-menu-item"
+            onClick={() => handleMoveTab(longPressMenuTabId, 'right')}
+            disabled={tabs.findIndex(t => t.id === longPressMenuTabId) === tabs.length - 1}
+          >
+            Move Right
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
       <div className="tab-actions">
         {getSyncIndicator()}
         <AuthButton />
