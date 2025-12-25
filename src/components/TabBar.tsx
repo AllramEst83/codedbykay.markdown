@@ -507,6 +507,7 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
         className="tabs-container"
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         {tabs.map((tab, index) => (
           <div
@@ -530,6 +531,7 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
             onDrop={handleDrop}
             onDragEnd={handleDragEnd}
             onTouchStart={(e) => handleTouchStart(e, tab.id, index)}
+            onContextMenu={(e) => e.preventDefault()}
             onClick={() => {
               // Don't switch tab if we just finished dragging or are currently dragging
               if (!clickBlockedRef.current && !touchDragState && draggedTabId === null) {
