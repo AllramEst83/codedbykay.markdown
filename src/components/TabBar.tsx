@@ -28,6 +28,8 @@ const TabBarComponent = () => {
   } | null>(null)
   const tabRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const clickBlockedRef = useRef(false)
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const touchStartPosRef = useRef<{x: number, y: number} | null>(null)
 
   useEffect(() => {
     if (editingTabId && inputRef.current) {
@@ -357,24 +359,48 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
     const tabElement = tabRefs.current.get(tabId)
     if (!tabElement) return
 
-    clickBlockedRef.current = false
-    setTouchDragState({
-      tabId,
-      startX: touch.clientX,
-      currentX: touch.clientX,
-      tabIndex: index,
-      hasMoved: false,
-    })
+    // Store initial touch position to detect scrolling
+    touchStartPosRef.current = {
+      x: touch.clientX,
+      y: touch.clientY
+    }
+
+    // Start long press timer
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+    longPressTimerRef.current = setTimeout(() => {
+      // Trigger haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50)
+      }
+
+      clickBlockedRef.current = false
+      setTouchDragState({
+        tabId,
+        startX: touch.clientX,
+        currentX: touch.clientX,
+        tabIndex: index,
+        hasMoved: false,
+      })
+    }, 400) // 400ms delay for long press
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchDragState) return
-
     const touch = e.touches[0]
-    const deltaX = Math.abs(touch.clientX - touchDragState.startX)
-    
-    // Only start dragging if moved more than 10px (prevents accidental drags)
-    if (deltaX < 10 && !touchDragState.hasMoved) return
+
+    if (!touchDragState) {
+      if (touchStartPosRef.current) {
+        const deltaX = Math.abs(touch.clientX - touchStartPosRef.current.x)
+        const deltaY = Math.abs(touch.clientY - touchStartPosRef.current.y)
+        
+        if (deltaX > 10 || deltaY > 10) {
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current)
+            longPressTimerRef.current = null
+          }
+        }
+      }
+      return
+    }
 
     e.preventDefault() // Prevent scrolling while dragging
     e.stopPropagation()
@@ -439,6 +465,12 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
   }
 
   const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+    touchStartPosRef.current = null
+
     if (!touchDragState) return
 
     const dragIndex = touchDragState.tabIndex
