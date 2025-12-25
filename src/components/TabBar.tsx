@@ -352,7 +352,7 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
   }
 
   // Mobile long-press handlers for reorder menu
-  const handleTouchStart = (e: React.TouchEvent, tabId: string, index: number) => {
+  const handleTouchStart = (e: React.TouchEvent, tabId: string) => {
     if (editingTabId === tabId) return
     
     const touch = e.touches[0]
@@ -402,7 +402,7 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
 
   // Close menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+    const handleClickOutside = () => {
       if (longPressMenuTabId) {
         setLongPressMenuTabId(null)
         setLongPressMenuPosition(null)
@@ -451,7 +451,7 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
             onDragOver={(e) => handleDragOver(e, index)}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onTouchStart={(e) => handleTouchStart(e, tab.id, index)}
+            onTouchStart={(e) => handleTouchStart(e, tab.id)}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             onClick={() => {
