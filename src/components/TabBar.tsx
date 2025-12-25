@@ -27,6 +27,7 @@ const TabBarComponent = () => {
     hasMoved: boolean
   } | null>(null)
   const tabRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const tabsContainerRef = useRef<HTMLDivElement>(null)
   const clickBlockedRef = useRef(false)
 
   useEffect(() => {
@@ -259,6 +260,28 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
     }
   }
 
+  // Scroll dragged tab into view
+  const scrollTabIntoView = (tabId: string) => {
+    const tabElement = tabRefs.current.get(tabId)
+    const container = tabsContainerRef.current
+    
+    if (!tabElement || !container) return
+    
+    const containerRect = container.getBoundingClientRect()
+    const tabRect = tabElement.getBoundingClientRect()
+    
+    // Check if tab is outside visible area
+    if (tabRect.left < containerRect.left) {
+      // Tab is to the left of visible area, scroll left
+      const scrollAmount = tabRect.left - containerRect.left - 10 // 10px padding
+      container.scrollLeft += scrollAmount
+    } else if (tabRect.right > containerRect.right) {
+      // Tab is to the right of visible area, scroll right
+      const scrollAmount = tabRect.right - containerRect.right + 10 // 10px padding
+      container.scrollLeft += scrollAmount
+    }
+  }
+
   // Desktop drag handlers
   const handleDragStart = (e: React.DragEvent, tabId: string) => {
     if (editingTabId === tabId) {
@@ -281,6 +304,9 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
     e.dataTransfer.dropEffect = 'move'
     
     if (draggedTabId === null) return
+    
+    // Scroll dragged tab into view
+    scrollTabIntoView(draggedTabId)
     
     const dragIndex = tabs.findIndex(tab => tab.id === draggedTabId)
     if (dragIndex === -1) return
@@ -383,6 +409,11 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
       clickBlockedRef.current = true
     }
     
+    // Scroll dragged tab into view (before state update)
+    if (touchDragState.tabId) {
+      scrollTabIntoView(touchDragState.tabId)
+    }
+    
     setTouchDragState(prev => prev ? {
       ...prev,
       currentX: touch.clientX,
@@ -472,6 +503,7 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
       } as React.CSSProperties}
     >
       <div 
+        ref={tabsContainerRef}
         className="tabs-container"
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
