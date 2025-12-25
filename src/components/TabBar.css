@@ -95,7 +95,7 @@
   max-width: 280px;
   position: relative;
   transition: all 0.2s ease;
-  touch-action: none;
+  touch-action: pan-x pan-y;
 }
 
 .tab[draggable="true"] {
