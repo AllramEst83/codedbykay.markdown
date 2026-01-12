@@ -34,6 +34,7 @@ class SyncService {
   private realtimeChannel: RealtimeChannel | null = null
   private isInitialized = false
   private isSyncing = false
+  private isConnected = false
   private deviceId: string = getDeviceId()
   private currentUserId: string | null = null
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null
@@ -224,9 +225,10 @@ class SyncService {
         },
         (payload) => this.handleRealtimeEvent(payload)
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
           console.log('Realtime subscription active')
+          this.isConnected = true
           // If we were in error/offline state, consider ourselves healthy again
           if (this.syncState.status === 'error' || this.syncState.status === 'offline') {
             this.updateSyncState({
@@ -236,7 +238,10 @@ class SyncService {
           }
         } else if (status === 'CHANNEL_ERROR') {
           console.error('Realtime subscription error')
+          this.isConnected = false
           this.handleRealtimeChannelError()
+        } else if (status === 'CLOSED') {
+          this.isConnected = false
         }
       })
   }
@@ -264,8 +269,9 @@ class SyncService {
   /**
    * Public method to reconnect sync service when app becomes visible or online
    * Can be called from React components on visibilitychange, focus, or online events
+   * @param force - If true, forces a full re-sync even if state looks healthy
    */
-  async reconnectIfNeeded(): Promise<void> {
+  async reconnectIfNeeded(force = false): Promise<void> {
     if (!this.isInitialized || !this.currentUserId) {
       return
     }
@@ -273,20 +279,32 @@ class SyncService {
     // Check if we're actually online
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       this.updateSyncState({ status: 'offline' })
+      this.isConnected = false
       return
     }
 
-    // Only reconnect if we're in an error or offline state
-    if (this.syncState.status !== 'error' && this.syncState.status !== 'offline') {
+    // If force is true, or we're not connected, or we're in an error/offline state
+    const shouldReconnect = force || !this.isConnected || this.syncState.status === 'error' || this.syncState.status === 'offline'
+
+    if (!shouldReconnect) {
       return
     }
 
     try {
-      console.log('Attempting sync service reconnect...')
+      console.log('Attempting sync service reconnect...', { force, isConnected: this.isConnected, status: this.syncState.status })
       this.updateSyncState({ status: 'syncing' })
 
-      // Re-establish realtime subscription
-      await this.setupRealtimeSubscription(this.currentUserId)
+      // If forcing or disconnected, perform a full initial sync to ensure we have latest data
+      // This is crucial for mobile where we might have missed events while suspended
+      if (force || !this.isConnected) {
+        console.log('Performing full sync on reconnect...')
+        await this.performInitialSync()
+      }
+
+      // Re-establish realtime subscription if needed
+      if (!this.realtimeChannel || !this.isConnected) {
+        await this.setupRealtimeSubscription(this.currentUserId)
+      }
       
       // Process any pending queue items
       await this.processSyncQueue()

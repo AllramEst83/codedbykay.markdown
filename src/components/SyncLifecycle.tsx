@@ -27,7 +27,9 @@ function SyncLifecycle() {
     const handleVisibilityOrFocus = () => {
       // Only reconnect when tab becomes visible
       if (document.visibilityState === 'visible') {
-        syncService.reconnectIfNeeded()
+        // Force a reconnect and sync check when app becomes visible
+        // This handles cases where the app was suspended/backgrounded and missed updates
+        syncService.reconnectIfNeeded(true)
       }
     }
 
