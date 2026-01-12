@@ -245,61 +245,81 @@ function App() {
         style={{
           borderTopColor: previewTheme.borderColor,
           paddingBottom: containerPaddingBottom > 0 ? `${containerPaddingBottom}px` : undefined,
+          display: !activeTab ? 'flex' : undefined,
+          justifyContent: !activeTab ? 'center' : undefined,
+          alignItems: !activeTab ? 'center' : undefined,
         }}
       >
-        {showEditor && (
-          <div 
-            className="pane editor-pane"
-            style={{
-              width: isMobile ? '100%' : `${editorPaneWidth}%`,
-              minWidth: isMobile ? '100%' : `${MIN_PANE_WIDTH}%`,
-              maxWidth: isMobile ? '100%' : `${MAX_PANE_WIDTH}%`,
-            }}
-          >
-            <Editor
-              key={activeTabId} // Force recreation when switching tabs (not when title changes)
-              ref={editorRef}
-              value={markdown}
-              onChange={handleMarkdownChange}
-              onScroll={handleEditorScroll}
-            />
+        {!activeTab ? (
+          <div style={{ 
+            color: previewTheme.textColor, 
+            opacity: 0.6, 
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '1rem'
+          }}>
+            <p style={{ fontSize: '1.2rem', fontWeight: 500 }}>No notes created</p>
+            <p style={{ fontSize: '0.95rem' }}>Click the + button above to add a new note</p>
           </div>
-        )}
-        {!isMobile && (
-          <div
-            className={`divider ${isDragging ? 'dragging' : ''}`}
-            onMouseDown={handleMouseDown}
-            style={{
-              backgroundColor: previewTheme.borderColor,
-            }}
-          />
-        )}
-        {showPreview && (
-          <div 
-            className="pane preview-pane"
-            style={{
-              backgroundColor: previewTheme.backgroundColor,
-              width: isMobile ? '100%' : `${100 - editorPaneWidth}%`,
-              minWidth: isMobile ? '100%' : `${MIN_PANE_WIDTH}%`,
-              maxWidth: isMobile ? '100%' : `${MAX_PANE_WIDTH}%`,
-            }}
-          >
-            <Suspense fallback={
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                height: '100%',
-              }}>
-                <Spinner size={32} message="Loading preview..." />
+        ) : (
+          <>
+            {showEditor && (
+              <div 
+                className="pane editor-pane"
+                style={{
+                  width: isMobile ? '100%' : `${editorPaneWidth}%`,
+                  minWidth: isMobile ? '100%' : `${MIN_PANE_WIDTH}%`,
+                  maxWidth: isMobile ? '100%' : `${MAX_PANE_WIDTH}%`,
+                }}
+              >
+                <Editor
+                  key={activeTabId} // Force recreation when switching tabs (not when title changes)
+                  ref={editorRef}
+                  value={markdown}
+                  onChange={handleMarkdownChange}
+                  onScroll={handleEditorScroll}
+                />
               </div>
-            }>
-              <Preview
-                markdown={debouncedMarkdown}
-                onScroll={handlePreviewScroll}
+            )}
+            {!isMobile && (
+              <div
+                className={`divider ${isDragging ? 'dragging' : ''}`}
+                onMouseDown={handleMouseDown}
+                style={{
+                  backgroundColor: previewTheme.borderColor,
+                }}
               />
-            </Suspense>
-          </div>
+            )}
+            {showPreview && (
+              <div 
+                className="pane preview-pane"
+                style={{
+                  backgroundColor: previewTheme.backgroundColor,
+                  width: isMobile ? '100%' : `${100 - editorPaneWidth}%`,
+                  minWidth: isMobile ? '100%' : `${MIN_PANE_WIDTH}%`,
+                  maxWidth: isMobile ? '100%' : `${MAX_PANE_WIDTH}%`,
+                }}
+              >
+                <Suspense fallback={
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    height: '100%',
+                  }}>
+                    <Spinner size={32} message="Loading preview..." />
+                  </div>
+                }>
+                  <Preview
+                    markdown={debouncedMarkdown}
+                    onScroll={handlePreviewScroll}
+                  />
+                </Suspense>
+              </div>
+            )}
+          </>
         )}
       </div>
       {isMobile && (

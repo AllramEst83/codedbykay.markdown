@@ -19,15 +19,6 @@ export const useTabs = () => {
 export const TabsProvider = ({ children }: TabsProviderProps) => {
   const [tabs, setTabs] = useState<TabData[]>(() => {
     const loadedTabs = localStorageService.loadTabs()
-    if (loadedTabs.length === 0) {
-      // Create initial tab if none exist
-      const initialTabId = `tab-${Date.now()}`
-      return [{
-        id: initialTabId,
-        title: 'Untitled',
-        content: '',
-      }]
-    }
     // Ensure all loaded tabs have string content
     return loadedTabs.map((tab) => ({
       ...tab,
@@ -41,24 +32,7 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     if (loadedTabs.length > 0) {
       return loadedTabs[0].id
     }
-    // If no tabs loaded, we created an initial tab above, so get its ID from tabs
-    // Since tabs is initialized synchronously, we can safely access tabs[0]
-    const initialTabs = (() => {
-      const loaded = localStorageService.loadTabs()
-      if (loaded.length === 0) {
-        return [{
-          id: `tab-${Date.now()}`,
-          title: 'Untitled',
-          content: '',
-        }]
-      }
-      return loaded.map((tab) => ({
-        ...tab,
-        content: typeof tab.content === 'string' ? tab.content : String(tab.content || ''),
-        title: typeof tab.title === 'string' ? tab.title : String(tab.title || 'Untitled'),
-      }))
-    })()
-    return initialTabs.length > 0 ? initialTabs[0].id : null
+    return null
   })
 
   const [saveState, setSaveState] = useState<Map<string, 'saving' | 'saved' | 'idle'>>(new Map())
@@ -250,21 +224,16 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
   const closeTab = useCallback((tabId: string) => {
     setTabs((prev) => {
       const filtered = prev.filter((tab) => tab.id !== tabId)
-      if (filtered.length === 0) {
-        // If closing last tab, create a new one
-        const newTab: TabData = {
-          id: `tab-${Date.now()}`,
-          title: 'Untitled',
-          content: '',
-        }
-        setActiveTabId(newTab.id)
-        return [newTab]
-      }
-      // Switch to another tab if closing active tab
+      
+      // If closing active tab, switch to another one
       if (activeTabId === tabId) {
-        const currentIndex = prev.findIndex((tab) => tab.id === tabId)
-        const newIndex = currentIndex > 0 ? currentIndex - 1 : 0
-        setActiveTabId(filtered[newIndex]?.id || filtered[0].id)
+        if (filtered.length === 0) {
+          setActiveTabId(null)
+        } else {
+          const currentIndex = prev.findIndex((tab) => tab.id === tabId)
+          const newIndex = currentIndex > 0 ? currentIndex - 1 : 0
+          setActiveTabId(filtered[newIndex]?.id || filtered[0].id)
+        }
       }
       return filtered
     })
@@ -422,22 +391,15 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
       setTabs((prevTabs) => {
         const filtered = prevTabs.filter((tab) => tab.id !== deletedNoteId)
         
-        // If deleting the last tab, create a new one
-        if (filtered.length === 0) {
-          const newTab: TabData = {
-            id: `tab-${Date.now()}`,
-            title: 'Untitled',
-            content: '',
-          }
-          setActiveTabId(newTab.id)
-          return [newTab]
-        }
-        
-        // Switch to another tab if deleting active tab
+        // If deleting active tab, switch to another one or null
         if (activeTabId === deletedNoteId) {
-          const currentIndex = prevTabs.findIndex((tab) => tab.id === deletedNoteId)
-          const newIndex = currentIndex > 0 ? currentIndex - 1 : 0
-          setActiveTabId(filtered[newIndex]?.id || filtered[0].id)
+          if (filtered.length === 0) {
+            setActiveTabId(null)
+          } else {
+            const currentIndex = prevTabs.findIndex((tab) => tab.id === deletedNoteId)
+            const newIndex = currentIndex > 0 ? currentIndex - 1 : 0
+            setActiveTabId(filtered[newIndex]?.id || filtered[0].id)
+          }
         }
         
         return filtered
