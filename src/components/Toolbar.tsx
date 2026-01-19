@@ -343,7 +343,7 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
         <button 
           className="toolbar-button" 
           onClick={handleIndentLeft}
-          title="Indent Left"
+          title="Indent Left (Shift+Tab)"
           aria-label="Indent Left"
         >
           <Outdent size={16} />
@@ -351,7 +351,7 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
         <button 
           className="toolbar-button" 
           onClick={handleIndentRight}
-          title="Indent Right"
+          title="Indent Right (Tab)"
           aria-label="Indent Right"
         >
           <Indent size={16} />
