@@ -5,6 +5,7 @@
  */
 
 import { getSupabaseClient } from '../supabase/client'
+import { updateServerTime } from './serverTimeService'
 import type { CloudNote } from '../types/services/sync'
 import type { TabData } from '../types/services'
 
@@ -44,6 +45,9 @@ export async function createNote(params: CreateNoteParams): Promise<CloudNote> {
   if (!data?.note) {
     throw new Error('Invalid response from create-note function')
   }
+  if (data?.server_time) {
+    updateServerTime(data.server_time)
+  }
 
   return data.note as CloudNote
 }
@@ -66,6 +70,9 @@ export async function getNotes(): Promise<CloudNote[]> {
   if (!data?.notes) {
     throw new Error('Invalid response from get-notes function')
   }
+  if (data?.server_time) {
+    updateServerTime(data.server_time)
+  }
 
   return data.notes as CloudNote[]
 }
@@ -76,8 +83,9 @@ export async function getNotes(): Promise<CloudNote[]> {
 export async function getNote(noteId: string): Promise<CloudNote> {
   const supabase = getSupabaseClient()
 
-  const { data, error } = await supabase.functions.invoke('get-notes', {
-    method: 'GET',
+  const { data, error } = await supabase.functions.invoke('get-note', {
+    body: { id: noteId },
+    method: 'POST',
   })
 
   if (error) {
@@ -85,18 +93,14 @@ export async function getNote(noteId: string): Promise<CloudNote> {
     throw new Error(error.message || 'Failed to fetch note')
   }
 
-  if (!data?.notes) {
-    throw new Error('Invalid response from get-notes function')
+  if (!data?.note) {
+    throw new Error('Invalid response from get-note function')
+  }
+  if (data?.server_time) {
+    updateServerTime(data.server_time)
   }
 
-  const notes = data.notes as CloudNote[]
-  const note = notes.find((n) => n.id === noteId)
-
-  if (!note) {
-    throw new Error('Note not found')
-  }
-
-  return note
+  return data.note as CloudNote
 }
 
 /**
@@ -117,6 +121,9 @@ export async function updateNote(params: UpdateNoteParams): Promise<CloudNote> {
 
   if (!data?.note) {
     throw new Error('Invalid response from update-note function')
+  }
+  if (data?.server_time) {
+    updateServerTime(data.server_time)
   }
 
   return data.note as CloudNote
@@ -243,5 +250,8 @@ export function cloudNoteToTabData(cloudNote: CloudNote): TabData {
     title: cloudNote.title,
     content: cloudNote.content,
     lastSaved: new Date(cloudNote.updated_at).getTime(),
+    lastSavedServerTime: true,
+    cloudId: cloudNote.id,
+    cloudUpdatedAt: cloudNote.updated_at,
   }
 }

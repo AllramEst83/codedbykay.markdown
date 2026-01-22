@@ -5,6 +5,7 @@
 
 import type { TabData } from '../types/services'
 import type { CloudNote, ConflictResolution } from '../types/services/sync'
+import { getServerTimeOffsetMs } from './serverTimeService'
 
 /**
  * Resolves conflicts between local and cloud notes
@@ -20,17 +21,25 @@ export function resolveConflict(
 ): ConflictResolution {
   const localTimestamp = localNote.lastSaved || 0
   const cloudTimestamp = new Date(cloudNote.updated_at).getTime()
+  const serverOffset = getServerTimeOffsetMs()
+  const localTimestampAligned = localNote.lastSavedServerTime || serverOffset === null
+    ? localTimestamp
+    : localTimestamp + serverOffset
 
   // Local is newer - local wins
-  if (localTimestamp > cloudTimestamp) {
+  if (localTimestampAligned > cloudTimestamp) {
     return {
       strategy: 'local-wins',
-      resolvedNote: localNote,
+      resolvedNote: {
+        ...localNote,
+        cloudId: localNote.cloudId || cloudNote.id,
+        cloudUpdatedAt: cloudNote.updated_at,
+      },
     }
   }
 
   // Cloud is newer - cloud wins
-  if (cloudTimestamp > localTimestamp) {
+  if (cloudTimestamp > localTimestampAligned) {
     return {
       strategy: 'cloud-wins',
       resolvedNote: {
@@ -38,6 +47,9 @@ export function resolveConflict(
         title: cloudNote.title,
         content: cloudNote.content,
         lastSaved: cloudTimestamp,
+        lastSavedServerTime: true,
+        cloudId: cloudNote.id,
+        cloudUpdatedAt: cloudNote.updated_at,
       },
     }
   }
@@ -69,6 +81,9 @@ function mergeNotes(localNote: TabData, cloudNote: CloudNote): TabData {
     title,
     content: baseContent,
     lastSaved: new Date(cloudNote.updated_at).getTime() + 1, // +1ms to ensure sync
+    lastSavedServerTime: true,
+    cloudId: localNote.cloudId || cloudNote.id,
+    cloudUpdatedAt: cloudNote.updated_at,
   }
 }
 
@@ -87,8 +102,12 @@ export function shouldUploadToCloud(
   // Local is newer - upload
   const localTimestamp = localNote.lastSaved || 0
   const cloudTimestamp = new Date(cloudNote.updated_at).getTime()
+  const serverOffset = getServerTimeOffsetMs()
+  const localTimestampAligned = localNote.lastSavedServerTime || serverOffset === null
+    ? localTimestamp
+    : localTimestamp + serverOffset
 
-  return localTimestamp > cloudTimestamp
+  return localTimestampAligned > cloudTimestamp
 }
 
 /**
@@ -106,8 +125,12 @@ export function shouldDownloadFromCloud(
   // Cloud is newer - download
   const localTimestamp = localNote.lastSaved || 0
   const cloudTimestamp = new Date(cloudNote.updated_at).getTime()
+  const serverOffset = getServerTimeOffsetMs()
+  const localTimestampAligned = localNote.lastSavedServerTime || serverOffset === null
+    ? localTimestamp
+    : localTimestamp + serverOffset
 
-  return cloudTimestamp > localTimestamp
+  return cloudTimestamp > localTimestampAligned
 }
 
 /**

@@ -86,7 +86,10 @@ Deno.serve(async (req) => {
       })
     );
 
-    return jsonResponse({ notes: decryptedNotes }, { status: 200, headers: corsHeaders });
+    return jsonResponse(
+      { notes: decryptedNotes, server_time: new Date().toISOString() },
+      { status: 200, headers: corsHeaders },
+    );
   } catch (err) {
     if (err instanceof HttpError) {
       return jsonResponse({ error: err.message }, { status: err.status, headers: corsHeaders });

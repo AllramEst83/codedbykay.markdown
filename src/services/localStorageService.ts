@@ -1,4 +1,5 @@
 import type { TabData, TabMetadata } from '../types/services'
+import { getServerAlignedTimestamp } from './serverTimeService'
 
 export type { TabData }
 
@@ -74,12 +75,22 @@ class LocalStorageService {
   /**
    * Save a single tab to localStorage
    */
-  private saveTabToStorage(tab: TabData): void {
+  private saveTabToStorage(tab: TabData, options?: { preserveLastSaved?: boolean }): void {
     try {
+      const preserveLastSaved = options?.preserveLastSaved ?? false
+      const existingTab = preserveLastSaved ? this.getTabFromStorage(tab.id) : null
       const validatedTab = this.validateTabData(tab)
+      const { timestamp, isAligned } = getServerAlignedTimestamp()
+      const lastSaved = preserveLastSaved
+        ? (validatedTab.lastSaved ?? existingTab?.lastSaved ?? timestamp)
+        : timestamp
+      const lastSavedServerTime = preserveLastSaved
+        ? (validatedTab.lastSavedServerTime ?? existingTab?.lastSavedServerTime ?? false)
+        : isAligned
       const tabWithTimestamp = {
         ...validatedTab,
-        lastSaved: Date.now()
+        lastSaved,
+        lastSavedServerTime,
       }
       localStorage.setItem(`${TAB_KEY_PREFIX}${tab.id}`, JSON.stringify(tabWithTimestamp))
       this.cachedTabs.set(tab.id, tabWithTimestamp)
@@ -116,10 +127,19 @@ class LocalStorageService {
       }
     }
     
+    const lastSaved = typeof tab.lastSaved === 'number' ? tab.lastSaved : undefined
+    const lastSavedServerTime = typeof tab.lastSavedServerTime === 'boolean' ? tab.lastSavedServerTime : undefined
+    const cloudId = typeof tab.cloudId === 'string' ? tab.cloudId : undefined
+    const cloudUpdatedAt = typeof tab.cloudUpdatedAt === 'string' ? tab.cloudUpdatedAt : undefined
+    
     return {
       ...tab,
       content,
-      title
+      title,
+      lastSaved,
+      lastSavedServerTime,
+      cloudId,
+      cloudUpdatedAt,
     }
   }
 
@@ -280,8 +300,8 @@ class LocalStorageService {
   /**
    * Save a single tab immediately (for manual save)
    */
-  saveTabImmediately(tab: TabData): void {
-    this.saveTabToStorage(tab)
+  saveTabImmediately(tab: TabData, options?: { preserveLastSaved?: boolean }): void {
+    this.saveTabToStorage(tab, options)
     
     // Ensure tab is in metadata
     const metadata = this.getMetadata()

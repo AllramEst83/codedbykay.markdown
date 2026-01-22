@@ -3,6 +3,9 @@ export interface TabData {
   title: string
   content: string
   lastSaved?: number
+  lastSavedServerTime?: boolean
+  cloudId?: string
+  cloudUpdatedAt?: string
 }
 
 export interface TabMetadata {
