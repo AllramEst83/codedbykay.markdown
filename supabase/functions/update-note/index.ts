@@ -9,6 +9,7 @@ interface UpdateNoteRequest {
   title?: string;
   content?: string;
   device_id?: string;
+  expected_updated_at?: string;
 }
 
 Deno.serve(async (req) => {
@@ -32,6 +33,12 @@ Deno.serve(async (req) => {
     if (!body.id) {
       return jsonResponse(
         { error: 'Missing required field: id' },
+        { status: 400, headers: corsHeaders },
+      );
+    }
+    if (!body.expected_updated_at) {
+      return jsonResponse(
+        { error: 'Missing required field: expected_updated_at' },
         { status: 400, headers: corsHeaders },
       );
     }
@@ -69,14 +76,14 @@ Deno.serve(async (req) => {
       updates.device_id = body.device_id;
     }
 
-    // Update note in database
+    // Update note in database with optimistic concurrency check
     const { data, error } = await supabase
       .from('notes')
       .update(updates)
       .eq('id', body.id)
       .eq('user_id', userId)
-      .select()
-      .single();
+      .eq('updated_at', body.expected_updated_at)
+      .select();
 
     if (error) {
       console.error('Failed to update note:', error);
@@ -86,15 +93,38 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!data) {
+    const updatedNote = data?.[0];
+    if (!updatedNote) {
+      const { data: existing, error: existingError } = await supabase
+        .from('notes')
+        .select('id, updated_at')
+        .eq('id', body.id)
+        .eq('user_id', userId)
+        .limit(1);
+
+      if (existingError) {
+        console.error('Failed to check note existence:', existingError);
+        return jsonResponse(
+          { error: existingError.message },
+          { status: 500, headers: corsHeaders },
+        );
+      }
+
+      if (!existing || existing.length === 0) {
+        return jsonResponse(
+          { error: 'Note not found' },
+          { status: 404, headers: corsHeaders },
+        );
+      }
+
       return jsonResponse(
-        { error: 'Note not found' },
-        { status: 404, headers: corsHeaders },
+        { error: 'Conflict: note has been updated' },
+        { status: 409, headers: corsHeaders },
       );
     }
 
     return jsonResponse(
-      { note: data, server_time: new Date().toISOString() },
+      { note: updatedNote, server_time: new Date().toISOString() },
       { status: 200, headers: corsHeaders },
     );
   } catch (err) {

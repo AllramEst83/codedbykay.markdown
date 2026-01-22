@@ -21,10 +21,32 @@ export interface UpdateNoteParams {
   title?: string
   content?: string
   device_id?: string
+  expected_updated_at?: string
 }
 
 export interface DeleteNoteParams {
   id: string
+}
+
+export class CloudStorageError extends Error {
+  status?: number
+
+  constructor(message: string, status?: number) {
+    super(message)
+    this.name = 'CloudStorageError'
+    this.status = status
+  }
+}
+
+export class CloudConflictError extends CloudStorageError {
+  constructor(message = 'Conflict') {
+    super(message, 409)
+    this.name = 'CloudConflictError'
+  }
+}
+
+export function isConflictError(error: unknown): error is CloudConflictError {
+  return Boolean(error && typeof error === 'object' && (error as { status?: number }).status === 409)
 }
 
 /**
@@ -116,7 +138,10 @@ export async function updateNote(params: UpdateNoteParams): Promise<CloudNote> {
 
   if (error) {
     console.error('Failed to update note:', error)
-    throw new Error(error.message || 'Failed to update note')
+    if (error.status === 409) {
+      throw new CloudConflictError(error.message || 'Conflict')
+    }
+    throw new CloudStorageError(error.message || 'Failed to update note', error.status)
   }
 
   if (!data?.note) {
@@ -237,6 +262,7 @@ export function tabDataToUpdateParams(
     title: tab.title,
     content: tab.content,
     device_id: deviceId,
+    expected_updated_at: tab.cloudUpdatedAt,
   }
 }
 
