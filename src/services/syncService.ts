@@ -101,17 +101,28 @@ class SyncService {
       const localNotes = localStorageService.loadTabs()
       console.log(`Found ${localNotes.length} local notes`)
 
+      // Prime local-to-cloud mapping from stored metadata
+      localNotes.forEach((note) => {
+        if (note.cloudId) {
+          this.localToCloudIdMap.set(note.id, note.cloudId)
+        }
+      })
+
       // Fetch cloud notes
       const cloudNotes = await cloudStorage.getNotes()
       console.log(`Found ${cloudNotes.length} cloud notes`)
 
       // Build maps for efficient lookup
       const cloudByLocalId = new Map<string, CloudNote>()
+      const cloudByLocalAndDevice = new Map<string, CloudNote>()
       const cloudById = new Map<string, CloudNote>()
       
       cloudNotes.forEach((note) => {
         if (note.local_id) {
           cloudByLocalId.set(note.local_id, note)
+          if (note.device_id) {
+            cloudByLocalAndDevice.set(`${note.local_id}:${note.device_id}`, note)
+          }
         }
         cloudById.set(note.id, note)
       })
@@ -121,7 +132,22 @@ class SyncService {
       const notesToCreate: TabData[] = []
 
       for (const localNote of localNotes) {
-        const cloudNote = cloudByLocalId.get(localNote.id)
+        let cloudNote: CloudNote | undefined
+        if (localNote.cloudId) {
+          cloudNote = cloudById.get(localNote.cloudId)
+        }
+        if (!cloudNote) {
+          cloudNote = cloudById.get(localNote.id)
+        }
+        if (!cloudNote) {
+          cloudNote = cloudByLocalAndDevice.get(`${localNote.id}:${this.deviceId}`)
+        }
+        if (!cloudNote) {
+          const legacyMatch = cloudByLocalId.get(localNote.id)
+          if (legacyMatch && !legacyMatch.device_id) {
+            cloudNote = legacyMatch
+          }
+        }
 
         if (!cloudNote) {
           // Skip empty notes during initial sync
@@ -135,29 +161,45 @@ class SyncService {
         } else {
           // Note exists in both - resolve conflict
           const resolution = resolveConflict(localNote, cloudNote)
-          notesToSync.push(resolution.resolvedNote)
+          const resolvedNote = {
+            ...resolution.resolvedNote,
+            cloudId: localNote.cloudId || cloudNote.id,
+            cloudUpdatedAt: cloudNote.updated_at,
+          }
+          notesToSync.push(resolvedNote)
           
           // Map local ID to cloud ID
           this.localToCloudIdMap.set(localNote.id, cloudNote.id)
 
+          // Persist cloud metadata without mutating lastSaved
+          localStorageService.saveTabImmediately(resolvedNote, { preserveLastSaved: true })
+
           // Update cloud if local wins or merge
           if (resolution.strategy === 'local-wins' || resolution.strategy === 'merge') {
-            await this.uploadNoteToCloud(resolution.resolvedNote, cloudNote.id)
+            const updatedCloud = await this.uploadNoteToCloud(resolvedNote, cloudNote.id)
+            this.persistCloudMetadata(resolvedNote, updatedCloud)
           }
         }
       }
 
       // Process cloud notes not in local
       for (const cloudNote of cloudNotes) {
-        const hasLocalVersion = localNotes.some(
-          (local) => local.id === cloudNote.local_id || this.localToCloudIdMap.get(local.id) === cloudNote.id
-        )
+        const hasLocalVersion = localNotes.some((local) => {
+          if (local.id === cloudNote.id) return true
+          if (local.cloudId === cloudNote.id) return true
+          if (this.localToCloudIdMap.get(local.id) === cloudNote.id) return true
+          if (cloudNote.local_id && local.id === cloudNote.local_id) {
+            return !cloudNote.device_id || cloudNote.device_id === this.deviceId
+          }
+          return false
+        })
 
         if (!hasLocalVersion) {
           // Cloud-only note - download to local
           const tabData = cloudStorage.cloudNoteToTabData(cloudNote)
           notesToSync.push(tabData)
           this.localToCloudIdMap.set(tabData.id, cloudNote.id)
+          localStorageService.saveTabImmediately(tabData, { preserveLastSaved: true })
         }
       }
 
@@ -172,10 +214,16 @@ class SyncService {
           const createdNote = await cloudStorage.createNote(params)
           
           this.localToCloudIdMap.set(localNote.id, createdNote.id)
+          const noteWithCloud = {
+            ...noteToCreate,
+            cloudId: createdNote.id,
+            cloudUpdatedAt: createdNote.updated_at,
+          }
+          localStorageService.saveTabImmediately(noteWithCloud, { preserveLastSaved: true })
           
           // Update local note with synced content
           if (syncedContent !== localNote.content) {
-            notesToSync.push(noteToCreate)
+            notesToSync.push(noteWithCloud)
           }
         } catch (error) {
           console.error(`Failed to create cloud note for ${localNote.id}:`, error)
@@ -354,6 +402,7 @@ class SyncService {
           // Download to local
           const tabData = cloudStorage.cloudNoteToTabData(cloudNote)
           this.localToCloudIdMap.set(tabData.id, cloudNote.id)
+          localStorageService.saveTabImmediately(tabData, { preserveLastSaved: true })
           
           // Prefetch images
           await prefetchImagesInContent(tabData.content)
@@ -372,40 +421,48 @@ class SyncService {
             return
           }
 
-          // Find local note by cloud ID
-          const localId = Array.from(this.localToCloudIdMap.entries())
-            .find(([_, cloudId]) => cloudId === rawNote.id)?.[0]
-
           // Fetch decrypted note from backend
           console.log('Fetching decrypted note for UPDATE:', rawNote.id)
           const cloudNote = await cloudStorage.getNote(rawNote.id)
 
-          if (!localId) {
+          // Find local note by cloud ID or stored metadata
+          const localNotes = localStorageService.loadTabs()
+          let localNote = localNotes.find((n) => n.cloudId === rawNote.id || n.id === rawNote.id)
+          if (!localNote) {
+            const mappedLocalId = Array.from(this.localToCloudIdMap.entries())
+              .find(([_, cloudId]) => cloudId === rawNote.id)?.[0]
+            if (mappedLocalId) {
+              localNote = localNotes.find((n) => n.id === mappedLocalId)
+            }
+          }
+
+          if (!localNote) {
             // New note we don't have locally
             const tabData = cloudStorage.cloudNoteToTabData(cloudNote)
             this.localToCloudIdMap.set(tabData.id, cloudNote.id)
+            localStorageService.saveTabImmediately(tabData, { preserveLastSaved: true })
             await prefetchImagesInContent(tabData.content)
             console.log('Adding note from UPDATE event:', tabData)
             this.triggerNoteUpdate([tabData])
             return
           }
 
-          // Load local note
-          const localNotes = localStorageService.loadTabs()
-          const localNote = localNotes.find((n) => n.id === localId)
-
-          if (!localNote) {
-            return
-          }
+          this.localToCloudIdMap.set(localNote.id, cloudNote.id)
 
           // Resolve conflict
           const resolution = resolveConflict(localNote, cloudNote)
           
           // Only update if cloud wins or merge
           if (resolution.strategy === 'cloud-wins' || resolution.strategy === 'merge') {
-            await prefetchImagesInContent(resolution.resolvedNote.content)
-            console.log('Updating note from realtime:', resolution.resolvedNote)
-            this.triggerNoteUpdate([resolution.resolvedNote])
+            const resolvedNote = {
+              ...resolution.resolvedNote,
+              cloudId: localNote.cloudId || cloudNote.id,
+              cloudUpdatedAt: cloudNote.updated_at,
+            }
+            await prefetchImagesInContent(resolvedNote.content)
+            localStorageService.saveTabImmediately(resolvedNote, { preserveLastSaved: true })
+            console.log('Updating note from realtime:', resolvedNote)
+            this.triggerNoteUpdate([resolvedNote])
           } else {
             console.log('Local note is newer, skipping update')
           }
@@ -416,7 +473,9 @@ class SyncService {
           const deletedNote = payload.old
           
           // Find local note by cloud ID
-          const localId = Array.from(this.localToCloudIdMap.entries())
+          const localNotes = localStorageService.loadTabs()
+          const localNote = localNotes.find((n) => n.cloudId === deletedNote.id || n.id === deletedNote.id)
+          const localId = localNote?.id || Array.from(this.localToCloudIdMap.entries())
             .find(([_, cloudId]) => cloudId === deletedNote.id)?.[0]
 
           if (localId) {
@@ -534,7 +593,7 @@ class SyncService {
       return
     }
 
-    const cloudId = this.localToCloudIdMap.get(item.tabId)
+    const cloudId = localNote?.cloudId || this.localToCloudIdMap.get(item.tabId)
 
     switch (item.action) {
       case 'create':
@@ -551,20 +610,27 @@ class SyncService {
         const syncedContent = await syncImageReferencesInContent(localNote.content, item.tabId)
         const noteToSync = { ...localNote, content: syncedContent }
 
+        let updatedCloud: CloudNote
         if (cloudId) {
           // Update existing cloud note
-          await this.uploadNoteToCloud(noteToSync, cloudId)
+          updatedCloud = await this.uploadNoteToCloud(noteToSync, cloudId)
         } else {
           // Create new cloud note
           const params = cloudStorage.tabDataToCreateParams(noteToSync, this.deviceId)
-          const createdNote = await cloudStorage.createNote(params)
-          this.localToCloudIdMap.set(item.tabId, createdNote.id)
+          updatedCloud = await cloudStorage.createNote(params)
         }
+        this.localToCloudIdMap.set(item.tabId, updatedCloud.id)
 
-        // Update local note with synced content if changed
-        if (syncedContent !== localNote.content) {
-          localStorageService.saveTabImmediately({ ...localNote, content: syncedContent })
-        }
+        // Persist cloud metadata (and content if images were synced)
+        localStorageService.saveTabImmediately(
+          {
+            ...localNote,
+            content: syncedContent,
+            cloudId: updatedCloud.id,
+            cloudUpdatedAt: updatedCloud.updated_at,
+          },
+          { preserveLastSaved: syncedContent === localNote.content }
+        )
         break
       }
 
@@ -584,9 +650,23 @@ class SyncService {
   /**
    * Uploads a note to cloud
    */
-  private async uploadNoteToCloud(note: TabData, cloudId: string): Promise<void> {
+  private async uploadNoteToCloud(note: TabData, cloudId: string): Promise<CloudNote> {
     const params = cloudStorage.tabDataToUpdateParams(note, cloudId, this.deviceId)
-    await cloudStorage.updateNote(params)
+    return cloudStorage.updateNote(params)
+  }
+
+  /**
+   * Persists cloud metadata without mutating lastSaved
+   */
+  private persistCloudMetadata(localNote: TabData, cloudNote: CloudNote): void {
+    localStorageService.saveTabImmediately(
+      {
+        ...localNote,
+        cloudId: cloudNote.id,
+        cloudUpdatedAt: cloudNote.updated_at,
+      },
+      { preserveLastSaved: true }
+    )
   }
 
   /**

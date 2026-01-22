@@ -2,13 +2,10 @@ import { handleCorsPreflightRequest, getCorsHeaders } from '../_shared/cors.ts';
 import { getAuthenticatedUser } from '../_shared/auth.ts';
 import { createSupabaseClientWithAuth } from '../_shared/supabase.ts';
 import { HttpError, jsonResponse } from '../_shared/errors.ts';
-import { encrypt } from '../_shared/crypto.ts';
+import { decrypt } from '../_shared/crypto.ts';
 
-interface CreateNoteRequest {
-  title: string;
-  content: string;
-  local_id?: string;
-  device_id?: string;
+interface GetNoteRequest {
+  id: string;
 }
 
 Deno.serve(async (req) => {
@@ -27,17 +24,14 @@ Deno.serve(async (req) => {
     }
 
     const { userId } = await getAuthenticatedUser(req);
-    const body = await req.json() as CreateNoteRequest;
+    const body = await req.json() as GetNoteRequest;
 
-    if (!body.title || body.content === undefined) {
+    if (!body.id) {
       return jsonResponse(
-        { error: 'Missing required fields: title and content' },
+        { error: 'Missing required field: id' },
         { status: 400, headers: corsHeaders },
       );
     }
-
-    // Encrypt the content
-    const encrypted = await encrypt(body.content);
 
     // Get auth token for RLS
     const authToken = req.headers.get('Authorization')?.replace('Bearer ', '');
@@ -50,41 +44,57 @@ Deno.serve(async (req) => {
 
     const supabase = createSupabaseClientWithAuth(authToken);
 
-    // Insert note into database
+    // Fetch the note
     const { data, error } = await supabase
       .from('notes')
-      .insert({
-        user_id: userId,
-        title: body.title,
-        content: encrypted.encryptedKey,
-        encrypted_key: encrypted.encryptedKey,
-        iv: encrypted.iv,
-        auth_tag: encrypted.authTag,
-        local_id: body.local_id || null,
-        device_id: body.device_id || null,
-        last_synced_at: new Date().toISOString(),
-      })
-      .select()
+      .select('*')
+      .eq('user_id', userId)
+      .eq('id', body.id)
       .single();
 
     if (error) {
-      console.error('Failed to create note:', error);
+      console.error('Failed to fetch note:', error);
+      const status = error.code === 'PGRST116' ? 404 : 500;
       return jsonResponse(
         { error: error.message },
-        { status: 500, headers: corsHeaders },
+        { status, headers: corsHeaders },
       );
     }
 
+    if (!data) {
+      return jsonResponse(
+        { error: 'Note not found' },
+        { status: 404, headers: corsHeaders },
+      );
+    }
+
+    const decryptedContent = await decrypt({
+      encryptedKey: data.encrypted_key,
+      iv: data.iv,
+      authTag: data.auth_tag,
+    });
+
+    const note = {
+      id: data.id,
+      user_id: data.user_id,
+      title: data.title,
+      content: decryptedContent,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      last_synced_at: data.last_synced_at,
+      device_id: data.device_id,
+      local_id: data.local_id,
+    };
+
     return jsonResponse(
-      { note: data, server_time: new Date().toISOString() },
-      { status: 201, headers: corsHeaders },
+      { note, server_time: new Date().toISOString() },
+      { status: 200, headers: corsHeaders },
     );
   } catch (err) {
     if (err instanceof HttpError) {
       return jsonResponse({ error: err.message }, { status: err.status, headers: corsHeaders });
     }
-    console.error('create-note failed:', err);
+    console.error('get-note failed:', err);
     return jsonResponse({ error: 'Internal server error' }, { status: 500, headers: corsHeaders });
   }
 });
-
