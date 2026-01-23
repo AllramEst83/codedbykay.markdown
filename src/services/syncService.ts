@@ -906,10 +906,11 @@ class SyncService {
       return
     }
 
-    const pendingEntries = tabId
-      ? this.pendingIncomingUpdates.has(tabId)
-        ? [[tabId, this.pendingIncomingUpdates.get(tabId)!]]
-        : []
+    const pendingEntries: Array<[string, CloudNote]> = tabId
+      ? (() => {
+          const pending = this.pendingIncomingUpdates.get(tabId)
+          return pending ? [[tabId, pending]] : []
+        })()
       : Array.from(this.pendingIncomingUpdates.entries())
 
     if (pendingEntries.length === 0) {
