@@ -10,6 +10,8 @@ export interface TabsContextType {
   updateTabTitle: (tabId: string, title: string) => void
   saveTab: (tabId: string) => void
   reorderTabs: (fromIndex: number, toIndex: number) => void
+  isTabDirty: (tabId: string) => boolean
+  hasPendingIncomingChange: (tabId: string) => boolean
   saveState: Map<string, 'saving' | 'saved' | 'idle'>
   syncState: SyncState
 }

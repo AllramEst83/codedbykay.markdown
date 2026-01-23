@@ -46,6 +46,9 @@ class SyncService {
   private stateChangeCallbacks: Set<(state: SyncState) => void> = new Set()
   private noteUpdateCallbacks: Set<(notes: TabData[]) => void> = new Set()
   private noteDeletionCallbacks: Set<(noteId: string) => void> = new Set()
+  private pendingIncomingCallbacks: Set<(pendingTabIds: string[]) => void> = new Set()
+  private tabDirtyChecker: ((tabId: string) => boolean) | null = null
+  private pendingIncomingUpdates: Map<string, CloudNote> = new Map()
 
   /**
    * Initializes the sync service
@@ -398,17 +401,8 @@ class SyncService {
           // Fetch decrypted note from backend
           console.log('Fetching decrypted note for INSERT:', rawNote.id)
           const cloudNote = await cloudStorage.getNote(rawNote.id)
-          
-          // Download to local
-          const tabData = cloudStorage.cloudNoteToTabData(cloudNote)
-          this.localToCloudIdMap.set(tabData.id, cloudNote.id)
-          localStorageService.saveTabImmediately(tabData, { preserveLastSaved: true })
-          
-          // Prefetch images
-          await prefetchImagesInContent(tabData.content)
-          
-          console.log('Adding new note from realtime:', tabData)
-          this.triggerNoteUpdate([tabData])
+
+          await this.addCloudNoteToLocal(cloudNote, 'INSERT event')
           break
         }
 
@@ -438,34 +432,20 @@ class SyncService {
 
           if (!localNote) {
             // New note we don't have locally
-            const tabData = cloudStorage.cloudNoteToTabData(cloudNote)
-            this.localToCloudIdMap.set(tabData.id, cloudNote.id)
-            localStorageService.saveTabImmediately(tabData, { preserveLastSaved: true })
-            await prefetchImagesInContent(tabData.content)
-            console.log('Adding note from UPDATE event:', tabData)
-            this.triggerNoteUpdate([tabData])
+            await this.addCloudNoteToLocal(cloudNote, 'UPDATE event')
             return
           }
 
           this.localToCloudIdMap.set(localNote.id, cloudNote.id)
 
-          // Resolve conflict
-          const resolution = resolveConflict(localNote, cloudNote)
-          
-          // Only update if cloud wins or merge
-          if (resolution.strategy === 'cloud-wins' || resolution.strategy === 'merge') {
-            const resolvedNote = {
-              ...resolution.resolvedNote,
-              cloudId: localNote.cloudId || cloudNote.id,
-              cloudUpdatedAt: cloudNote.updated_at,
-            }
-            await prefetchImagesInContent(resolvedNote.content)
-            localStorageService.saveTabImmediately(resolvedNote, { preserveLastSaved: true })
-            console.log('Updating note from realtime:', resolvedNote)
-            this.triggerNoteUpdate([resolvedNote])
-          } else {
-            console.log('Local note is newer, skipping update')
+          if (this.shouldDeferIncomingUpdate(localNote.id)) {
+            console.log('Deferring update for dirty or queued note:', localNote.id)
+            this.deferIncomingUpdate(localNote.id, cloudNote)
+            return
           }
+
+          this.removePendingIncoming(localNote.id)
+          await this.applyCloudNoteUpdate(localNote, cloudNote, 'realtime')
           break
         }
 
@@ -511,6 +491,10 @@ class SyncService {
       timestamp: Date.now(),
       retries: 0,
     })
+
+    if (action === 'delete') {
+      this.removePendingIncoming(tabId)
+    }
 
     this.updateSyncState({ 
       pendingChanges: this.syncQueue.size,
@@ -579,6 +563,7 @@ class SyncService {
     })
 
     this.saveSyncQueue()
+    await this.applyPendingUpdates()
   }
 
   /**
@@ -777,6 +762,86 @@ class SyncService {
     this.noteDeletionCallbacks.forEach((callback) => callback(noteId))
   }
 
+  private notifyPendingIncomingChange(): void {
+    const pendingTabIds = Array.from(this.pendingIncomingUpdates.keys())
+    this.pendingIncomingCallbacks.forEach((callback) => callback(pendingTabIds))
+  }
+
+  private isTabDirty(tabId: string): boolean {
+    if (!this.tabDirtyChecker) {
+      return false
+    }
+    try {
+      return this.tabDirtyChecker(tabId)
+    } catch (error) {
+      console.warn('Failed to check dirty state for tab:', tabId, error)
+      return false
+    }
+  }
+
+  private isTabQueued(tabId: string): boolean {
+    return this.syncQueue.has(tabId)
+  }
+
+  private shouldDeferIncomingUpdate(tabId: string): boolean {
+    return this.isTabDirty(tabId) || this.isTabQueued(tabId)
+  }
+
+  private deferIncomingUpdate(tabId: string, cloudNote: CloudNote): void {
+    const queuedItem = this.syncQueue.get(tabId)
+    if (queuedItem?.action === 'delete') {
+      console.log('Skipping incoming update for tab queued for delete:', tabId)
+      this.removePendingIncoming(tabId)
+      return
+    }
+
+    const existing = this.pendingIncomingUpdates.get(tabId)
+    if (
+      !existing ||
+      new Date(cloudNote.updated_at).getTime() >= new Date(existing.updated_at).getTime()
+    ) {
+      this.pendingIncomingUpdates.set(tabId, cloudNote)
+    }
+    this.notifyPendingIncomingChange()
+  }
+
+  private removePendingIncoming(tabId: string): void {
+    if (this.pendingIncomingUpdates.delete(tabId)) {
+      this.notifyPendingIncomingChange()
+    }
+  }
+
+  private async addCloudNoteToLocal(cloudNote: CloudNote, sourceLabel: string): Promise<void> {
+    const tabData = cloudStorage.cloudNoteToTabData(cloudNote)
+    this.localToCloudIdMap.set(tabData.id, cloudNote.id)
+    localStorageService.saveTabImmediately(tabData, { preserveLastSaved: true })
+    await prefetchImagesInContent(tabData.content)
+    console.log(`Adding note from ${sourceLabel}:`, tabData)
+    this.triggerNoteUpdate([tabData])
+  }
+
+  private async applyCloudNoteUpdate(
+    localNote: TabData,
+    cloudNote: CloudNote,
+    sourceLabel: string
+  ): Promise<void> {
+    const resolution = resolveConflict(localNote, cloudNote)
+
+    if (resolution.strategy === 'cloud-wins' || resolution.strategy === 'merge') {
+      const resolvedNote = {
+        ...resolution.resolvedNote,
+        cloudId: localNote.cloudId || cloudNote.id,
+        cloudUpdatedAt: cloudNote.updated_at,
+      }
+      await prefetchImagesInContent(resolvedNote.content)
+      localStorageService.saveTabImmediately(resolvedNote, { preserveLastSaved: true })
+      console.log(`Updating note from ${sourceLabel}:`, resolvedNote)
+      this.triggerNoteUpdate([resolvedNote])
+    } else {
+      console.log('Local note is newer, skipping update')
+    }
+  }
+
   /**
    * Subscribes to sync state changes
    */
@@ -807,6 +872,74 @@ class SyncService {
     // Return unsubscribe function
     return () => {
       this.noteDeletionCallbacks.delete(callback)
+    }
+  }
+
+  /**
+   * Subscribes to pending incoming change updates
+   */
+  onPendingIncomingChange(callback: (pendingTabIds: string[]) => void): () => void {
+    this.pendingIncomingCallbacks.add(callback)
+    callback(Array.from(this.pendingIncomingUpdates.keys()))
+    return () => {
+      this.pendingIncomingCallbacks.delete(callback)
+    }
+  }
+
+  /**
+   * Registers a dirty state checker for realtime updates
+   */
+  setTabDirtyChecker(checker: (tabId: string) => boolean): () => void {
+    this.tabDirtyChecker = checker
+    return () => {
+      if (this.tabDirtyChecker === checker) {
+        this.tabDirtyChecker = null
+      }
+    }
+  }
+
+  /**
+   * Applies any pending incoming updates that are safe to merge
+   */
+  async applyPendingUpdates(tabId?: string): Promise<void> {
+    if (this.pendingIncomingUpdates.size === 0) {
+      return
+    }
+
+    const pendingEntries: Array<[string, CloudNote]> = tabId
+      ? (() => {
+          const pending = this.pendingIncomingUpdates.get(tabId)
+          return pending ? [[tabId, pending]] : []
+        })()
+      : Array.from(this.pendingIncomingUpdates.entries())
+
+    if (pendingEntries.length === 0) {
+      return
+    }
+
+    let didUpdate = false
+
+    for (const [localId, cloudNote] of pendingEntries) {
+      if (this.shouldDeferIncomingUpdate(localId)) {
+        continue
+      }
+
+      const localNotes = localStorageService.loadTabs()
+      const localNote = localNotes.find((note) => note.id === localId)
+
+      if (!localNote) {
+        await this.addCloudNoteToLocal(cloudNote, 'pending update')
+      } else {
+        this.localToCloudIdMap.set(localNote.id, cloudNote.id)
+        await this.applyCloudNoteUpdate(localNote, cloudNote, 'pending update')
+      }
+
+      this.pendingIncomingUpdates.delete(localId)
+      didUpdate = true
+    }
+
+    if (didUpdate) {
+      this.notifyPendingIncomingChange()
     }
   }
 
@@ -848,6 +981,9 @@ class SyncService {
     this.stateChangeCallbacks.clear()
     this.noteUpdateCallbacks.clear()
     this.noteDeletionCallbacks.clear()
+    this.pendingIncomingCallbacks.clear()
+    this.pendingIncomingUpdates.clear()
+    this.tabDirtyChecker = null
   }
 }
 
