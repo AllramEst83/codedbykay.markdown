@@ -613,7 +613,15 @@ class SyncService {
         let updatedCloud: CloudNote
         if (cloudId) {
           // Update existing cloud note
-          updatedCloud = await this.uploadNoteToCloud(noteToSync, cloudId)
+          try {
+            updatedCloud = await this.uploadNoteToCloud(noteToSync, cloudId)
+          } catch (error) {
+            if (cloudStorage.isConflictError(error)) {
+              await this.handleUpdateConflict(noteToSync, cloudId)
+              return
+            }
+            throw error
+          }
         } else {
           // Create new cloud note
           const params = cloudStorage.tabDataToCreateParams(noteToSync, this.deviceId)
@@ -651,8 +659,58 @@ class SyncService {
    * Uploads a note to cloud
    */
   private async uploadNoteToCloud(note: TabData, cloudId: string): Promise<CloudNote> {
-    const params = cloudStorage.tabDataToUpdateParams(note, cloudId, this.deviceId)
+    let noteWithExpected = note
+    if (!note.cloudUpdatedAt) {
+      console.warn('Missing cloudUpdatedAt for update, fetching latest:', cloudId)
+      const cloudNote = await cloudStorage.getNote(cloudId)
+      this.persistCloudMetadata(note, cloudNote)
+      noteWithExpected = {
+        ...note,
+        cloudId: cloudNote.id,
+        cloudUpdatedAt: cloudNote.updated_at,
+      }
+    }
+    const params = cloudStorage.tabDataToUpdateParams(noteWithExpected, cloudId, this.deviceId)
     return cloudStorage.updateNote(params)
+  }
+
+  /**
+   * Handles optimistic concurrency conflicts (409) by resolving against latest cloud note.
+   */
+  private async handleUpdateConflict(localNote: TabData, cloudId: string): Promise<void> {
+    console.warn('Conflict detected, fetching latest cloud note:', cloudId)
+    const cloudNote = await cloudStorage.getNote(cloudId)
+    this.localToCloudIdMap.set(localNote.id, cloudNote.id)
+
+    const resolution = resolveConflict(localNote, cloudNote)
+    const resolvedNote = resolution.resolvedNote
+
+    // Persist resolution locally
+    localStorageService.saveTabImmediately(resolvedNote, { preserveLastSaved: true })
+
+    if (resolution.strategy !== 'local-wins') {
+      await prefetchImagesInContent(resolvedNote.content)
+      this.triggerNoteUpdate([resolvedNote])
+    }
+
+    if (resolution.strategy === 'cloud-wins') {
+      return
+    }
+
+    // Local wins or merge - re-upload using latest expected_updated_at
+    const syncedContent = await syncImageReferencesInContent(resolvedNote.content, localNote.id)
+    const noteToUpload = { ...resolvedNote, content: syncedContent }
+    const updatedCloud = await this.uploadNoteToCloud(noteToUpload, cloudNote.id)
+
+    this.localToCloudIdMap.set(localNote.id, updatedCloud.id)
+    localStorageService.saveTabImmediately(
+      {
+        ...noteToUpload,
+        cloudId: updatedCloud.id,
+        cloudUpdatedAt: updatedCloud.updated_at,
+      },
+      { preserveLastSaved: syncedContent === resolvedNote.content }
+    )
   }
 
   /**
