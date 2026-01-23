@@ -8,7 +8,7 @@ import AuthButton from './auth/AuthButton'
 import './TabBar.css'
 
 const TabBarComponent = () => {
-  const { tabs, activeTabId, addTab, closeTab, switchTab, updateTabTitle, reorderTabs, saveState, syncState } = useTabs()
+  const { tabs, activeTabId, addTab, closeTab, switchTab, updateTabTitle, reorderTabs, saveState, syncState, hasPendingIncomingChange } = useTabs()
   const { previewTheme } = useTheme()
   const { showModal } = useModal()
   const isAuthenticated = useAuthStore((state) => state.status === 'authenticated')
@@ -80,6 +80,17 @@ const TabBarComponent = () => {
       )
     }
     return null
+  }
+
+  const getIncomingIndicator = (tabId: string) => {
+    if (!hasPendingIncomingChange(tabId)) {
+      return null
+    }
+    return (
+      <span className="incoming-indicator" title="Incoming change pending">
+        Incoming
+      </span>
+    )
   }
 
   const handleShowHelp = useCallback(async () => {
@@ -554,6 +565,7 @@ ${pendingChanges > 0 ? `Pending Changes: ${pendingChanges}\n` : ''}Last Sync: ${
               <>
                 <span className="tab-title">{tab.title}</span>
                 {getSaveIndicator(tab.id)}
+                {getIncomingIndicator(tab.id)}
               </>
             )}
             <button

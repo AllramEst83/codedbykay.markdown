@@ -349,6 +349,21 @@
   flex-shrink: 0;
 }
 
+.incoming-indicator {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: 10px;
+  border: 1px solid currentColor;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #ffb74d;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
 .save-indicator.saving {
   color: #4a9eff;
 }

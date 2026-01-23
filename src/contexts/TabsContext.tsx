@@ -41,6 +41,7 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     lastSync: null,
     pendingChanges: 0,
   })
+  const [pendingIncomingTabIds, setPendingIncomingTabIds] = useState<Set<string>>(new Set())
   
   // Get auth state for sync
   const authStatus = useAuthStore((state) => state.status)
@@ -352,6 +353,36 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     return unsubscribe
   }, [])
 
+  // Subscribe to incoming change notifications
+  useEffect(() => {
+    const unsubscribe = syncService.onPendingIncomingChange((pendingTabIds) => {
+      setPendingIncomingTabIds(new Set(pendingTabIds))
+    })
+    return unsubscribe
+  }, [])
+
+  const isTabDirty = useCallback((tabId: string): boolean => {
+    const tab = tabs.find((current) => current.id === tabId)
+    if (!tab) {
+      return false
+    }
+    const lastSaved = lastSavedState.get(tabId)
+    if (!lastSaved) {
+      return true
+    }
+    return lastSaved.content !== tab.content || lastSaved.title !== tab.title
+  }, [tabs, lastSavedState])
+
+  const hasPendingIncomingChange = useCallback((tabId: string): boolean => {
+    return pendingIncomingTabIds.has(tabId)
+  }, [pendingIncomingTabIds])
+
+  // Share dirty state with sync service for realtime updates
+  useEffect(() => {
+    const unsubscribe = syncService.setTabDirtyChecker(isTabDirty)
+    return unsubscribe
+  }, [isTabDirty])
+
   // Subscribe to note updates from sync (cloud changes)
   useEffect(() => {
     const unsubscribe = syncService.onNoteUpdate((updatedNotes) => {
@@ -382,6 +413,11 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     })
     return unsubscribe
   }, [])
+
+  // Attempt to apply any pending incoming updates when state changes
+  useEffect(() => {
+    void syncService.applyPendingUpdates()
+  }, [tabs, lastSavedState])
 
   // Subscribe to note deletions from sync (cloud changes)
   useEffect(() => {
@@ -458,6 +494,8 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
         updateTabTitle,
         saveTab,
         reorderTabs,
+        isTabDirty,
+        hasPendingIncomingChange,
         saveState,
         syncState,
       }}
