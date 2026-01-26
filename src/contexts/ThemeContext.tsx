@@ -102,18 +102,18 @@ const themes: Record<Theme, PreviewTheme> = {
     // WCAG AA compliant: #6b21a8 on #fef1f2 = 7.2:1 ✓
     codeTextColor: '#6b21a8', // Darker purple for better contrast (was #7c3aed)
     borderColor: '#fbcfe8', // More visible border
-    // WCAG AA compliant: #c026d3 on #fff5f7 = 5.1:1 ✓ (link)
-    linkColor: '#c026d3', // Darker pink for better contrast (was #ec4899)
+    // WCAG AA compliant link color for pastel background
+    linkColor: '#7e22ce', // Deep purple for clearer contrast in links
     // WCAG AA compliant: #7c3aed on #fff5f7 = 6.8:1 ✓
     blockquoteColor: '#7c3aed', // Darker purple for better contrast
     blockquoteBorder: '#e9d5ff', // More visible border
     tableBorder: '#fbcfe8',
     tableHeaderBg: '#fef1f2',
     // Heading colors - pastel theme with purple/pink gradient
-    h1Color: '#a855f7', // Bright purple for h1
-    h2Color: '#c026d3', // Pink-purple for h2
-    h3Color: '#ec4899', // Pink for h3
-    h4Color: '#f472b6', // Light pink for h4
+    h1Color: '#6b21a8', // Deep purple for h1
+    h2Color: '#a21caf', // Rich fuchsia for h2
+    h3Color: '#be185d', // Deep pink for h3
+    h4Color: '#9f1239', // Deep rose for h4
     // Toolbar colors
     toolbarBg: '#fef1f2',
     toolbarText: '#2d3748',
@@ -131,7 +131,7 @@ const themes: Record<Theme, PreviewTheme> = {
     // Mobile view toggle colors
     toggleBg: '#fef1f2',
     toggleText: '#2d3748',
-    toggleActiveBg: '#ff6b9d',
+    toggleActiveBg: '#c0265b',
     toggleInactiveBg: '#fce7f3',
     // Spinner color
     spinnerColor: '#2d3748',
@@ -192,18 +192,18 @@ const themes: Record<Theme, PreviewTheme> = {
     // WCAG AA compliant: #8b6f47 on #e8d5c4 = 4.8:1 ✓
     codeTextColor: '#8b6f47', // Brown for code text
     borderColor: '#8b6f47', // Brown borders
-    // WCAG AA compliant: #d84315 on #f5e6d3 = 5.1:1 ✓ (link)
-    linkColor: '#d84315', // 70s orange-red links
+    // WCAG AA compliant link color for warm background
+    linkColor: '#9a3412', // Dark rust for improved contrast
     // WCAG AA compliant: #6d4c41 on #f5e6d3 = 6.5:1 ✓
     blockquoteColor: '#6d4c41', // Darker brown for blockquotes
     blockquoteBorder: '#a1887f', // Medium brown border
     tableBorder: '#8b6f47',
     tableHeaderBg: '#e8d5c4', // Beige header background
     // Heading colors - 70s earth tones and warm colors
-    h1Color: '#8b4513', // Saddle brown for h1
-    h2Color: '#d84315', // Burnt orange for h2
-    h3Color: '#f57c00', // Deep orange for h3
-    h4Color: '#b8620a', // Muted orange-brown for h4 - WCAG compliant
+    h1Color: '#7a3412', // Deep brown for h1
+    h2Color: '#8c3f0b', // Burnt brown for h2
+    h3Color: '#9a3412', // Rust orange for h3
+    h4Color: '#a63d00', // Burnt orange for h4
     // Toolbar colors
     toolbarBg: '#e8d5c4',
     toolbarText: '#5d4037',
@@ -221,7 +221,7 @@ const themes: Record<Theme, PreviewTheme> = {
     // Mobile view toggle colors
     toggleBg: '#e8d5c4',
     toggleText: '#5d4037',
-    toggleActiveBg: '#d84315',
+    toggleActiveBg: '#c2410c',
     toggleInactiveBg: '#d5c4b4',
     // Spinner color
     spinnerColor: '#5d4037',
