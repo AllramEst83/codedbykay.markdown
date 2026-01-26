@@ -81,12 +81,12 @@
 
 .mobile-select-option:hover {
   background-color: var(--mobile-toolbar-hover-bg, #2a2d2e);
-  color: #ffffff;
+  color: var(--mobile-toolbar-text, #ffffff);
 }
 
 .mobile-select-option.is-selected {
   background-color: rgba(0, 122, 204, 0.2);
-  color: #ffffff;
+  color: var(--mobile-toolbar-text, #ffffff);
 }
 
 .mobile-select-option-icon {
