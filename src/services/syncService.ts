@@ -601,7 +601,7 @@ class SyncService {
       return
     }
 
-    const cloudId = localNote?.cloudId || this.localToCloudIdMap.get(item.tabId)
+    let cloudId = localNote?.cloudId || this.localToCloudIdMap.get(item.tabId)
 
     switch (item.action) {
       case 'create':
@@ -614,25 +614,50 @@ class SyncService {
           return
         }
 
+        let noteToSync = localNote
+        const pendingCloud = this.pendingIncomingUpdates.get(localNote.id)
+        if (pendingCloud) {
+          const resolution = resolveConflict(noteToSync, pendingCloud)
+          const resolvedNote = resolution.resolvedNote
+
+          this.localToCloudIdMap.set(localNote.id, pendingCloud.id)
+          localStorageService.saveTabImmediately(resolvedNote, { preserveLastSaved: true })
+
+          if (resolution.strategy !== 'local-wins') {
+            await prefetchImagesInContent(resolvedNote.content)
+            this.triggerNoteUpdate([resolvedNote])
+          }
+
+          this.removePendingIncoming(localNote.id)
+
+          if (resolution.strategy === 'cloud-wins') {
+            return
+          }
+
+          noteToSync = resolvedNote
+          cloudId = pendingCloud.id
+        }
+
         // Sync images in content
-        const syncedContent = await syncImageReferencesInContent(localNote.content, item.tabId)
-        const noteToSync = { ...localNote, content: syncedContent }
+        const syncedContent = await syncImageReferencesInContent(noteToSync.content, item.tabId)
+        const preserveLastSaved = syncedContent === noteToSync.content
+        const noteWithSyncedContent = { ...noteToSync, content: syncedContent }
 
         let updatedCloud: CloudNote
         if (cloudId) {
           // Update existing cloud note
           try {
-            updatedCloud = await this.uploadNoteToCloud(noteToSync, cloudId)
+            updatedCloud = await this.uploadNoteToCloud(noteWithSyncedContent, cloudId)
           } catch (error) {
             if (cloudStorage.isConflictError(error)) {
-              await this.handleUpdateConflict(noteToSync, cloudId)
+              await this.handleUpdateConflict(noteWithSyncedContent, cloudId)
               return
             }
             throw error
           }
         } else {
           // Create new cloud note
-          const params = cloudStorage.tabDataToCreateParams(noteToSync, this.deviceId)
+          const params = cloudStorage.tabDataToCreateParams(noteWithSyncedContent, this.deviceId)
           updatedCloud = await cloudStorage.createNote(params)
         }
         this.localToCloudIdMap.set(item.tabId, updatedCloud.id)
@@ -640,12 +665,11 @@ class SyncService {
         // Persist cloud metadata (and content if images were synced)
         localStorageService.saveTabImmediately(
           {
-            ...localNote,
-            content: syncedContent,
+            ...noteWithSyncedContent,
             cloudId: updatedCloud.id,
             cloudUpdatedAt: updatedCloud.updated_at,
           },
-          { preserveLastSaved: syncedContent === localNote.content }
+          { preserveLastSaved }
         )
         break
       }
@@ -689,6 +713,7 @@ class SyncService {
     console.warn('Conflict detected, fetching latest cloud note:', cloudId)
     const cloudNote = await cloudStorage.getNote(cloudId)
     this.localToCloudIdMap.set(localNote.id, cloudNote.id)
+    this.removePendingIncoming(localNote.id)
 
     const resolution = resolveConflict(localNote, cloudNote)
     const resolvedNote = resolution.resolvedNote
