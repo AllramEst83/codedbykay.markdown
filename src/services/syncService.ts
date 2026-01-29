@@ -184,8 +184,16 @@ class SyncService {
 
           // Update cloud if local wins or merge
           if (resolution.strategy === 'local-wins' || resolution.strategy === 'merge') {
-            const updatedCloud = await this.uploadNoteToCloud(resolvedNote, cloudNote.id)
-            this.persistCloudMetadata(resolvedNote, updatedCloud)
+            try {
+              const updatedCloud = await this.uploadNoteToCloud(resolvedNote, cloudNote.id)
+              this.persistCloudMetadata(resolvedNote, updatedCloud)
+            } catch (error) {
+              if (cloudStorage.isConflictError(error)) {
+                await this.handleUpdateConflict(resolvedNote, cloudNote.id)
+              } else {
+                throw error
+              }
+            }
           }
         }
       }

@@ -45,8 +45,27 @@ export class CloudConflictError extends CloudStorageError {
   }
 }
 
+function extractErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') {
+    return undefined
+  }
+  const err = error as {
+    status?: number | string
+    context?: {
+      status?: number | string
+      statusCode?: number | string
+    }
+  }
+  const rawStatus = err.status ?? err.context?.status ?? err.context?.statusCode
+  if (rawStatus === undefined || rawStatus === null) {
+    return undefined
+  }
+  const normalized = typeof rawStatus === 'string' ? Number.parseInt(rawStatus, 10) : rawStatus
+  return Number.isFinite(normalized) ? normalized : undefined
+}
+
 export function isConflictError(error: unknown): error is CloudConflictError {
-  return Boolean(error && typeof error === 'object' && (error as { status?: number }).status === 409)
+  return extractErrorStatus(error) === 409
 }
 
 /**
@@ -138,10 +157,11 @@ export async function updateNote(params: UpdateNoteParams): Promise<CloudNote> {
 
   if (error) {
     console.error('Failed to update note:', error)
-    if (error.status === 409) {
+    const status = extractErrorStatus(error)
+    if (status === 409) {
       throw new CloudConflictError(error.message || 'Conflict')
     }
-    throw new CloudStorageError(error.message || 'Failed to update note', error.status)
+    throw new CloudStorageError(error.message || 'Failed to update note', status)
   }
 
   if (!data?.note) {
