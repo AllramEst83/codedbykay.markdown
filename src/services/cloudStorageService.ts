@@ -156,11 +156,12 @@ export async function updateNote(params: UpdateNoteParams): Promise<CloudNote> {
   })
 
   if (error) {
-    console.error('Failed to update note:', error)
     const status = extractErrorStatus(error)
     if (status === 409) {
+      console.warn('Conflict updating note:', error)
       throw new CloudConflictError(error.message || 'Conflict')
     }
+    console.error('Failed to update note:', error)
     throw new CloudStorageError(error.message || 'Failed to update note', status)
   }
 
