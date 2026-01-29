@@ -14,7 +14,8 @@ import type { CloudNote, SyncState, SyncQueueItem } from '../types/services/sync
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const SYNC_QUEUE_KEY = 'markdown-editor-sync-queue'
-const SYNC_DEBOUNCE_MS = 2500 // 2.5 seconds debounce for cloud sync
+const SYNC_DEBOUNCE_MS = 2500 // Base debounce for cloud sync
+const SYNC_START_WINDOW_MS = 5000 // 5 seconds grace window before syncing
 const MAX_RETRIES = 5
 const RETRY_BASE_DELAY = 2000 // 2 seconds
 
@@ -34,6 +35,7 @@ class SyncService {
   private realtimeChannel: RealtimeChannel | null = null
   private isInitialized = false
   private isSyncing = false
+  private syncHoldUntil: number | null = null
   private isConnected = false
   private deviceId: string = getDeviceId()
   private currentUserId: string | null = null
@@ -64,6 +66,7 @@ class SyncService {
     console.log('Initializing sync service...')
     this.currentUserId = userId
     this.updateSyncState({ status: 'syncing' })
+    this.extendSyncHoldWindow()
 
     try {
       // Load persisted sync queue
@@ -100,6 +103,8 @@ class SyncService {
     console.log('Starting initial sync...')
 
     try {
+      await this.waitForSyncWindow()
+
       // Load local notes
       const localNotes = localStorageService.loadTabs()
       console.log(`Found ${localNotes.length} local notes`)
@@ -349,6 +354,7 @@ class SyncService {
       // This is crucial for mobile where we might have missed events while suspended
       if (force || !this.isConnected) {
         console.log('Performing full sync on reconnect...')
+        this.extendSyncHoldWindow()
         await this.performInitialSync()
       }
 
@@ -484,6 +490,10 @@ class SyncService {
       return
     }
 
+    if (action !== 'delete') {
+      this.extendSyncHoldWindow()
+    }
+
     // Add to queue
     this.syncQueue.set(tabId, {
       tabId,
@@ -530,32 +540,37 @@ class SyncService {
     this.isSyncing = true
     this.updateSyncState({ status: 'syncing' })
 
-    const items = Array.from(this.syncQueue.values())
+    try {
+      await this.waitForSyncWindow()
 
-    for (const item of items) {
-      try {
-        await this.syncNoteToCloud(item)
-        this.syncQueue.delete(item.tabId)
-      } catch (error) {
-        console.error(`Failed to sync note ${item.tabId}:`, error)
-        
-        // Retry logic with exponential backoff
-        if (item.retries < MAX_RETRIES) {
-          item.retries++
-          const delay = RETRY_BASE_DELAY * Math.pow(2, item.retries - 1)
-          
-          setTimeout(() => {
-            this.processSyncQueue()
-          }, delay)
-        } else {
-          // Max retries reached - remove from queue
-          console.error(`Max retries reached for note ${item.tabId}`)
+      const items = Array.from(this.syncQueue.values())
+
+      for (const item of items) {
+        try {
+          await this.syncNoteToCloud(item)
           this.syncQueue.delete(item.tabId)
+        } catch (error) {
+          console.error(`Failed to sync note ${item.tabId}:`, error)
+          
+          // Retry logic with exponential backoff
+          if (item.retries < MAX_RETRIES) {
+            item.retries++
+            const delay = RETRY_BASE_DELAY * Math.pow(2, item.retries - 1)
+            
+            setTimeout(() => {
+              this.processSyncQueue()
+            }, delay)
+          } else {
+            // Max retries reached - remove from queue
+            console.error(`Max retries reached for note ${item.tabId}`)
+            this.syncQueue.delete(item.tabId)
+          }
         }
       }
+    } finally {
+      this.isSyncing = false
     }
 
-    this.isSyncing = false
     this.updateSyncState({ 
       status: this.syncQueue.size > 0 ? 'syncing' : 'synced',
       pendingChanges: this.syncQueue.size,
@@ -737,6 +752,29 @@ class SyncService {
       localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(items))
     } catch (error) {
       console.error('Failed to save sync queue:', error)
+    }
+  }
+
+  private extendSyncHoldWindow(): void {
+    if (SYNC_START_WINDOW_MS <= 0) {
+      return
+    }
+    const holdUntil = Date.now() + SYNC_START_WINDOW_MS
+    this.syncHoldUntil = this.syncHoldUntil ? Math.max(this.syncHoldUntil, holdUntil) : holdUntil
+  }
+
+  private async waitForSyncWindow(): Promise<void> {
+    if (SYNC_START_WINDOW_MS <= 0 || !this.syncHoldUntil) {
+      return
+    }
+
+    while (true) {
+      const remaining = this.syncHoldUntil - Date.now()
+      if (remaining <= 0) {
+        this.syncHoldUntil = null
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, remaining))
     }
   }
 
