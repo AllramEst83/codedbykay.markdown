@@ -14,7 +14,7 @@ import type { CloudNote, SyncState, SyncQueueItem } from '../types/services/sync
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const SYNC_QUEUE_KEY = 'markdown-editor-sync-queue'
-const SYNC_DEBOUNCE_MS = 2500 // 2.5 seconds debounce for cloud sync
+const SYNC_DEBOUNCE_MS = 5000 // 5 seconds debounce for cloud sync
 const MAX_RETRIES = 5
 const RETRY_BASE_DELAY = 2000 // 2 seconds
 
@@ -48,6 +48,7 @@ class SyncService {
   private noteDeletionCallbacks: Set<(noteId: string) => void> = new Set()
   private pendingIncomingCallbacks: Set<(pendingTabIds: string[]) => void> = new Set()
   private tabDirtyChecker: ((tabId: string) => boolean) | null = null
+  private tabRecentEditChecker: ((tabId: string, graceMs: number) => boolean) | null = null
   private pendingIncomingUpdates: Map<string, CloudNote> = new Map()
 
   /**
@@ -783,8 +784,26 @@ class SyncService {
     return this.syncQueue.has(tabId)
   }
 
+  /**
+   * Grace period in milliseconds to defer incoming updates after any edit
+   * This prevents cloud overwrites during active typing sessions
+   */
+  private static readonly EDIT_GRACE_PERIOD_MS = 5000 // 5 seconds
+
+  private isTabRecentlyEdited(tabId: string): boolean {
+    if (!this.tabRecentEditChecker) {
+      return false
+    }
+    try {
+      return this.tabRecentEditChecker(tabId, SyncService.EDIT_GRACE_PERIOD_MS)
+    } catch (error) {
+      console.warn('Failed to check recent edit state for tab:', tabId, error)
+      return false
+    }
+  }
+
   private shouldDeferIncomingUpdate(tabId: string): boolean {
-    return this.isTabDirty(tabId) || this.isTabQueued(tabId)
+    return this.isTabDirty(tabId) || this.isTabQueued(tabId) || this.isTabRecentlyEdited(tabId)
   }
 
   private deferIncomingUpdate(tabId: string, cloudNote: CloudNote): void {
@@ -899,6 +918,19 @@ class SyncService {
   }
 
   /**
+   * Registers a recent edit checker for realtime updates
+   * This provides a grace period after any edit to prevent cloud overwrites during active typing
+   */
+  setTabRecentEditChecker(checker: (tabId: string, graceMs: number) => boolean): () => void {
+    this.tabRecentEditChecker = checker
+    return () => {
+      if (this.tabRecentEditChecker === checker) {
+        this.tabRecentEditChecker = null
+      }
+    }
+  }
+
+  /**
    * Applies any pending incoming updates that are safe to merge
    */
   async applyPendingUpdates(tabId?: string): Promise<void> {
@@ -984,6 +1016,7 @@ class SyncService {
     this.pendingIncomingCallbacks.clear()
     this.pendingIncomingUpdates.clear()
     this.tabDirtyChecker = null
+    this.tabRecentEditChecker = null
   }
 }
 

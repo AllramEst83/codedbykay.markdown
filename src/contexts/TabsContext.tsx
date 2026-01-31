@@ -50,6 +50,10 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
   // Ref to store the debounce timeout for auto-saving (browser timeout ID)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   
+  // Track last edit time per tab (used to defer incoming sync updates during active editing)
+  // Using ref instead of state to avoid unnecessary re-renders on every keystroke
+  const lastEditTimeRef = useRef<Map<string, number>>(new Map())
+  
   // Track last saved state for each tab to detect dirty tabs
   // Only initialize for tabs loaded from localStorage, not newly created ones
   const [lastSavedState, setLastSavedState] = useState<Map<string, { content: string; title: string }>>(() => {
@@ -247,7 +251,7 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
       syncService.queueNoteForSync(tabId, 'delete')
     }
     
-    // Clean up save state and last saved state
+    // Clean up save state, last saved state, and last edit time
     setSaveState((prev) => {
       const newState = new Map(prev)
       newState.delete(tabId)
@@ -258,6 +262,7 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
       newState.delete(tabId)
       return newState
     })
+    lastEditTimeRef.current.delete(tabId)
   }, [activeTabId, isAuthenticated])
 
   const switchTab = useCallback((tabId: string) => {
@@ -272,12 +277,18 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
       ? ''
       : String(content || '')
     
+    // Track last edit time for this tab (used to defer incoming sync updates)
+    lastEditTimeRef.current.set(tabId, Date.now())
+    
     setTabs((prev) =>
       prev.map((tab) => (tab.id === tabId ? { ...tab, content: contentString } : tab))
     )
   }, [])
 
   const updateTabTitle = useCallback((tabId: string, title: string) => {
+    // Track last edit time for this tab (used to defer incoming sync updates)
+    lastEditTimeRef.current.set(tabId, Date.now())
+    
     setTabs((prev) =>
       prev.map((tab) => {
         if (tab.id === tabId) {
@@ -377,11 +388,27 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     return pendingIncomingTabIds.has(tabId)
   }, [pendingIncomingTabIds])
 
+  // Check if a tab was recently edited within the grace period
+  // This is used to defer incoming sync updates during active editing
+  const isTabRecentlyEdited = useCallback((tabId: string, graceMs: number): boolean => {
+    const lastEdit = lastEditTimeRef.current.get(tabId)
+    if (!lastEdit) {
+      return false
+    }
+    return Date.now() - lastEdit < graceMs
+  }, [])
+
   // Share dirty state with sync service for realtime updates
   useEffect(() => {
     const unsubscribe = syncService.setTabDirtyChecker(isTabDirty)
     return unsubscribe
   }, [isTabDirty])
+
+  // Share recent edit checker with sync service for realtime updates
+  useEffect(() => {
+    const unsubscribe = syncService.setTabRecentEditChecker(isTabRecentlyEdited)
+    return unsubscribe
+  }, [isTabRecentlyEdited])
 
   // Subscribe to note updates from sync (cloud changes)
   useEffect(() => {
