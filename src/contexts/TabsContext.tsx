@@ -54,6 +54,10 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
   // Using ref instead of state to avoid unnecessary re-renders on every keystroke
   const lastEditTimeRef = useRef<Map<string, number>>(new Map())
   
+  // Track tabs that have been edited by the user and need cloud sync
+  // This prevents queuing syncs for tabs that were updated via realtime (not user edits)
+  const tabsNeedingSyncRef = useRef<Set<string>>(new Set())
+  
   // Track last saved state for each tab to detect dirty tabs
   // Only initialize for tabs loaded from localStorage, not newly created ones
   const [lastSavedState, setLastSavedState] = useState<Map<string, { content: string; title: string }>>(() => {
@@ -263,6 +267,7 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
       return newState
     })
     lastEditTimeRef.current.delete(tabId)
+    tabsNeedingSyncRef.current.delete(tabId)
   }, [activeTabId, isAuthenticated])
 
   const switchTab = useCallback((tabId: string) => {
@@ -280,6 +285,9 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     // Track last edit time for this tab (used to defer incoming sync updates)
     lastEditTimeRef.current.set(tabId, Date.now())
     
+    // Mark this tab as needing cloud sync (user edit, not realtime update)
+    tabsNeedingSyncRef.current.add(tabId)
+    
     setTabs((prev) =>
       prev.map((tab) => (tab.id === tabId ? { ...tab, content: contentString } : tab))
     )
@@ -288,6 +296,9 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
   const updateTabTitle = useCallback((tabId: string, title: string) => {
     // Track last edit time for this tab (used to defer incoming sync updates)
     lastEditTimeRef.current.set(tabId, Date.now())
+    
+    // Mark this tab as needing cloud sync (user edit, not realtime update)
+    tabsNeedingSyncRef.current.add(tabId)
     
     setTabs((prev) =>
       prev.map((tab) => {
@@ -484,19 +495,33 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
   }, [activeTabId])
 
   // Queue notes for cloud sync after local save (only if authenticated)
+  // Only queue tabs that were edited by the user, not those updated via realtime
   useEffect(() => {
     if (!isAuthenticated) {
       return
     }
 
-    // Queue dirty tabs for sync
+    // Only queue tabs that the user actually edited
+    const tabsToSync = tabsNeedingSyncRef.current
+    if (tabsToSync.size === 0) {
+      return
+    }
+
+    // Queue dirty tabs for sync (only user-edited ones)
     tabs.forEach((tab) => {
+      if (!tabsToSync.has(tab.id)) {
+        return // Skip tabs not edited by user
+      }
+      
       const lastSaved = lastSavedState.get(tab.id)
       if (lastSaved && (lastSaved.content !== tab.content || lastSaved.title !== tab.title)) {
         // Note has changes - queue for sync
         syncService.queueNoteForSync(tab.id, 'update')
       }
     })
+    
+    // Clear the set after processing (sync service has its own debouncing)
+    tabsNeedingSyncRef.current.clear()
   }, [tabs, lastSavedState, isAuthenticated])
 
   // Cleanup on unmount
