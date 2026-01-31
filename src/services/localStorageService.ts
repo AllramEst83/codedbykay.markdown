@@ -78,7 +78,9 @@ class LocalStorageService {
   private saveTabToStorage(tab: TabData, options?: { preserveLastSaved?: boolean }): void {
     try {
       const preserveLastSaved = options?.preserveLastSaved ?? false
-      const existingTab = preserveLastSaved ? this.getTabFromStorage(tab.id) : null
+      // Always fetch existing tab to preserve cloud metadata (cloudId, cloudUpdatedAt)
+      // These should never be lost just because the user typed something
+      const existingTab = this.getTabFromStorage(tab.id)
       const validatedTab = this.validateTabData(tab)
       const { timestamp, isAligned } = getServerAlignedTimestamp()
       const lastSaved = preserveLastSaved
@@ -87,10 +89,17 @@ class LocalStorageService {
       const lastSavedServerTime = preserveLastSaved
         ? (validatedTab.lastSavedServerTime ?? existingTab?.lastSavedServerTime ?? false)
         : isAligned
+      
+      // Preserve cloud metadata from existing tab if not present in new tab
+      const cloudId = validatedTab.cloudId ?? existingTab?.cloudId
+      const cloudUpdatedAt = validatedTab.cloudUpdatedAt ?? existingTab?.cloudUpdatedAt
+      
       const tabWithTimestamp = {
         ...validatedTab,
         lastSaved,
         lastSavedServerTime,
+        cloudId,
+        cloudUpdatedAt,
       }
       localStorage.setItem(`${TAB_KEY_PREFIX}${tab.id}`, JSON.stringify(tabWithTimestamp))
       this.cachedTabs.set(tab.id, tabWithTimestamp)
