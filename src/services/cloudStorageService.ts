@@ -126,6 +126,22 @@ export async function getNote(noteId: string): Promise<CloudNote> {
 }
 
 /**
+ * Extracts HTTP status code from Supabase FunctionsHttpError
+ * The status can be in different locations depending on SDK version
+ */
+function getErrorStatus(error: { status?: number; context?: { status?: number } }): number | undefined {
+  // Check direct status property first
+  if (typeof error.status === 'number') {
+    return error.status
+  }
+  // Check context.status (Supabase SDK v2 structure)
+  if (error.context && typeof error.context.status === 'number') {
+    return error.context.status
+  }
+  return undefined
+}
+
+/**
  * Updates an existing note in the cloud
  */
 export async function updateNote(params: UpdateNoteParams): Promise<CloudNote> {
@@ -137,11 +153,12 @@ export async function updateNote(params: UpdateNoteParams): Promise<CloudNote> {
   })
 
   if (error) {
-    console.error('Failed to update note:', error)
-    if (error.status === 409) {
+    const status = getErrorStatus(error)
+    console.error('Failed to update note:', error, 'status:', status)
+    if (status === 409) {
       throw new CloudConflictError(error.message || 'Conflict')
     }
-    throw new CloudStorageError(error.message || 'Failed to update note', error.status)
+    throw new CloudStorageError(error.message || 'Failed to update note', status)
   }
 
   if (!data?.note) {

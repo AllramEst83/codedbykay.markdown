@@ -662,9 +662,12 @@ class SyncService {
 
   /**
    * Handles optimistic concurrency conflicts (409) by resolving against latest cloud note.
+   * Includes retry logic to handle rapid successive conflicts.
    */
-  private async handleUpdateConflict(localNote: TabData, cloudId: string): Promise<void> {
-    console.warn('Conflict detected, fetching latest cloud note:', cloudId)
+  private async handleUpdateConflict(localNote: TabData, cloudId: string, attempt = 1): Promise<void> {
+    const MAX_CONFLICT_RETRIES = 3
+    
+    console.warn(`Conflict detected (attempt ${attempt}/${MAX_CONFLICT_RETRIES}), fetching latest cloud note:`, cloudId)
     const cloudNote = await cloudStorage.getNote(cloudId)
     this.localToCloudIdMap.set(localNote.id, cloudNote.id)
 
@@ -686,17 +689,29 @@ class SyncService {
     // Local wins or merge - re-upload using latest expected_updated_at
     const syncedContent = await syncImageReferencesInContent(resolvedNote.content, localNote.id)
     const noteToUpload = { ...resolvedNote, content: syncedContent }
-    const updatedCloud = await this.uploadNoteToCloud(noteToUpload, cloudNote.id)
+    
+    try {
+      const updatedCloud = await this.uploadNoteToCloud(noteToUpload, cloudNote.id)
 
-    this.localToCloudIdMap.set(localNote.id, updatedCloud.id)
-    localStorageService.saveTabImmediately(
-      {
-        ...noteToUpload,
-        cloudId: updatedCloud.id,
-        cloudUpdatedAt: updatedCloud.updated_at,
-      },
-      { preserveLastSaved: syncedContent === resolvedNote.content }
-    )
+      this.localToCloudIdMap.set(localNote.id, updatedCloud.id)
+      localStorageService.saveTabImmediately(
+        {
+          ...noteToUpload,
+          cloudId: updatedCloud.id,
+          cloudUpdatedAt: updatedCloud.updated_at,
+        },
+        { preserveLastSaved: syncedContent === resolvedNote.content }
+      )
+    } catch (error) {
+      // If we get another conflict during re-upload, retry with updated data
+      if (cloudStorage.isConflictError(error) && attempt < MAX_CONFLICT_RETRIES) {
+        console.warn('Conflict during re-upload, retrying...')
+        // Small delay before retry to let other updates settle
+        await new Promise(resolve => setTimeout(resolve, 500 * attempt))
+        return this.handleUpdateConflict(localNote, cloudId, attempt + 1)
+      }
+      throw error
+    }
   }
 
   /**
