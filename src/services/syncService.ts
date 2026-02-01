@@ -6,11 +6,11 @@
 import { getSupabaseClient } from '../supabase/client'
 import { localStorageService } from './localStorageService'
 import * as cloudStorage from './cloudStorageService'
-import { resolveConflict } from './conflictResolver'
+import { resolveConflict, areNotesIdentical } from './conflictResolver'
 import { syncImageReferencesInContent, migrateAllImagesToCloud, prefetchImagesInContent } from './imageSyncService'
 import { getDeviceId } from '../utils/deviceId'
 import type { TabData } from '../types/services'
-import type { CloudNote, SyncState, SyncQueueItem } from '../types/services/sync'
+import type { CloudNote, SyncState, SyncQueueItem, RecentSyncInfo } from '../types/services/sync'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const SYNC_QUEUE_KEY = 'markdown-editor-sync-queue'
@@ -42,6 +42,12 @@ class SyncService {
   // Map of local tab IDs to cloud note IDs
   private localToCloudIdMap: Map<string, string> = new Map()
   
+  // Track recently synced notes to prevent redundant sync operations
+  private recentlySyncedNotes: Map<string, RecentSyncInfo> = new Map()
+  
+  // Grace period for considering a note "recently synced" (prevents queue race conditions)
+  private static readonly RECENT_SYNC_GRACE_MS = 10000 // 10 seconds
+  
   // Callbacks for state changes
   private stateChangeCallbacks: Set<(state: SyncState) => void> = new Set()
   private noteUpdateCallbacks: Set<(notes: TabData[]) => void> = new Set()
@@ -50,6 +56,77 @@ class SyncService {
   private tabDirtyChecker: ((tabId: string) => boolean) | null = null
   private tabRecentEditChecker: ((tabId: string, graceMs: number) => boolean) | null = null
   private pendingIncomingUpdates: Map<string, CloudNote> = new Map()
+
+  /**
+   * Generates a simple hash for content comparison
+   * Used to detect if note content has actually changed
+   */
+  private generateContentHash(title: string, content: string): string {
+    // Simple hash using string length and character sum for fast comparison
+    const str = `${title}:${content}`
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32bit integer
+    }
+    return `${str.length}-${hash}`
+  }
+
+  /**
+   * Records that a note was just synced successfully
+   */
+  private markNoteSynced(noteId: string, cloudUpdatedAt: string, title: string, content: string): void {
+    this.recentlySyncedNotes.set(noteId, {
+      cloudUpdatedAt,
+      timestamp: Date.now(),
+      contentHash: this.generateContentHash(title, content),
+    })
+  }
+
+  /**
+   * Checks if a note was recently synced with identical content
+   * Returns true if sync can be skipped
+   */
+  private canSkipSync(note: TabData): boolean {
+    const recentSync = this.recentlySyncedNotes.get(note.id)
+    if (!recentSync) {
+      return false
+    }
+
+    // Check if within grace period
+    const age = Date.now() - recentSync.timestamp
+    if (age > SyncService.RECENT_SYNC_GRACE_MS) {
+      this.recentlySyncedNotes.delete(note.id)
+      return false
+    }
+
+    // Check if content is identical
+    const currentHash = this.generateContentHash(note.title, note.content)
+    if (currentHash !== recentSync.contentHash) {
+      return false
+    }
+
+    // Check if cloudUpdatedAt matches (note hasn't been updated elsewhere)
+    if (note.cloudUpdatedAt && note.cloudUpdatedAt === recentSync.cloudUpdatedAt) {
+      console.log('Skipping redundant sync for recently synced note:', note.id)
+      return true
+    }
+
+    return false
+  }
+
+  /**
+   * Clears stale entries from recently synced notes map
+   */
+  private cleanupRecentSyncInfo(): void {
+    const now = Date.now()
+    for (const [noteId, info] of this.recentlySyncedNotes.entries()) {
+      if (now - info.timestamp > SyncService.RECENT_SYNC_GRACE_MS) {
+        this.recentlySyncedNotes.delete(noteId)
+      }
+    }
+  }
 
   /**
    * Initializes the sync service
@@ -182,6 +259,11 @@ class SyncService {
           if (resolution.strategy === 'local-wins' || resolution.strategy === 'merge') {
             const updatedCloud = await this.uploadNoteToCloud(resolvedNote, cloudNote.id)
             this.persistCloudMetadata(resolvedNote, updatedCloud)
+            // Mark as recently synced to prevent redundant queue processing
+            this.markNoteSynced(localNote.id, updatedCloud.updated_at, resolvedNote.title, resolvedNote.content)
+          } else {
+            // Cloud wins - mark as synced with cloud data
+            this.markNoteSynced(localNote.id, cloudNote.updated_at, cloudNote.title, cloudNote.content)
           }
         }
       }
@@ -225,6 +307,9 @@ class SyncService {
           }
           localStorageService.saveTabImmediately(noteWithCloud, { preserveLastSaved: true })
           
+          // Mark as recently synced to prevent redundant queue processing
+          this.markNoteSynced(localNote.id, createdNote.updated_at, noteWithCloud.title, noteWithCloud.content)
+          
           // Update local note with synced content
           if (syncedContent !== localNote.content) {
             notesToSync.push(noteWithCloud)
@@ -245,6 +330,10 @@ class SyncService {
       } catch (error) {
         console.warn('Image migration had issues:', error)
       }
+
+      // Clear stale queue items that were synced during initial sync
+      // This prevents the race condition where queue items have outdated cloudUpdatedAt
+      this.clearStaleSyncQueueItems()
 
       console.log('Initial sync complete')
     } catch (error) {
@@ -528,6 +617,9 @@ class SyncService {
       return
     }
 
+    // Clean up stale recently synced entries
+    this.cleanupRecentSyncInfo()
+
     this.isSyncing = true
     this.updateSyncState({ status: 'syncing' })
 
@@ -592,6 +684,29 @@ class SyncService {
           return
         }
 
+        // Skip if this note was recently synced with identical content
+        // This prevents the race condition where initial sync and queue processing overlap
+        if (this.canSkipSync(localNote)) {
+          return
+        }
+
+        // For updates, check if content is identical to cloud before uploading
+        if (cloudId) {
+          try {
+            const cloudNote = await cloudStorage.getNote(cloudId)
+            if (areNotesIdentical(localNote, cloudNote)) {
+              console.log('Skipping sync - content identical to cloud:', localNote.id)
+              // Update local cloudUpdatedAt to stay in sync
+              this.persistCloudMetadata(localNote, cloudNote)
+              this.markNoteSynced(localNote.id, cloudNote.updated_at, localNote.title, localNote.content)
+              return
+            }
+          } catch (error) {
+            // If we can't fetch the cloud note, proceed with sync anyway
+            console.warn('Could not fetch cloud note for comparison, proceeding with sync:', error)
+          }
+        }
+
         // Sync images in content
         const syncedContent = await syncImageReferencesInContent(localNote.content, item.tabId)
         const noteToSync = { ...localNote, content: syncedContent }
@@ -614,6 +729,9 @@ class SyncService {
           updatedCloud = await cloudStorage.createNote(params)
         }
         this.localToCloudIdMap.set(item.tabId, updatedCloud.id)
+
+        // Mark as recently synced
+        this.markNoteSynced(item.tabId, updatedCloud.updated_at, noteToSync.title, syncedContent)
 
         // Persist cloud metadata (and content if images were synced)
         localStorageService.saveTabImmediately(
@@ -663,13 +781,31 @@ class SyncService {
   /**
    * Handles optimistic concurrency conflicts (409) by resolving against latest cloud note.
    * Includes retry logic to handle rapid successive conflicts.
+   * 
+   * @param localNote - The local note that failed to sync
+   * @param cloudId - The cloud note ID
+   * @param attempt - Current retry attempt number
    */
-  private async handleUpdateConflict(localNote: TabData, cloudId: string, attempt = 1): Promise<void> {
+  private async handleUpdateConflict(
+    localNote: TabData, 
+    cloudId: string, 
+    attempt = 1
+  ): Promise<void> {
     const MAX_CONFLICT_RETRIES = 3
     
     console.warn(`Conflict detected (attempt ${attempt}/${MAX_CONFLICT_RETRIES}), fetching latest cloud note:`, cloudId)
+    
+    // Fetch the latest cloud note to get current content for conflict resolution
     const cloudNote = await cloudStorage.getNote(cloudId)
     this.localToCloudIdMap.set(localNote.id, cloudNote.id)
+
+    // First, check if content is actually identical - if so, no real conflict
+    if (areNotesIdentical(localNote, cloudNote)) {
+      console.log('Conflict resolved - content is identical, updating metadata only:', cloudId)
+      this.persistCloudMetadata(localNote, cloudNote)
+      this.markNoteSynced(localNote.id, cloudNote.updated_at, localNote.title, localNote.content)
+      return
+    }
 
     const resolution = resolveConflict(localNote, cloudNote)
     const resolvedNote = resolution.resolvedNote
@@ -683,17 +819,26 @@ class SyncService {
     }
 
     if (resolution.strategy === 'cloud-wins') {
+      // Mark as synced with cloud data
+      this.markNoteSynced(localNote.id, cloudNote.updated_at, cloudNote.title, cloudNote.content)
       return
     }
 
     // Local wins or merge - re-upload using latest expected_updated_at
     const syncedContent = await syncImageReferencesInContent(resolvedNote.content, localNote.id)
-    const noteToUpload = { ...resolvedNote, content: syncedContent }
+    const noteToUpload = { 
+      ...resolvedNote, 
+      content: syncedContent,
+      // Use the freshly fetched cloudNote's updated_at to ensure we have the latest
+      cloudUpdatedAt: cloudNote.updated_at,
+    }
     
     try {
       const updatedCloud = await this.uploadNoteToCloud(noteToUpload, cloudNote.id)
 
       this.localToCloudIdMap.set(localNote.id, updatedCloud.id)
+      this.markNoteSynced(localNote.id, updatedCloud.updated_at, noteToUpload.title, syncedContent)
+      
       localStorageService.saveTabImmediately(
         {
           ...noteToUpload,
@@ -753,6 +898,50 @@ class SyncService {
       localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(items))
     } catch (error) {
       console.error('Failed to save sync queue:', error)
+    }
+  }
+
+  /**
+   * Clears sync queue items for notes that were recently synced during initial sync
+   * This prevents the race condition where queued items have stale cloudUpdatedAt values
+   */
+  private clearStaleSyncQueueItems(): void {
+    const itemsToRemove: string[] = []
+    
+    for (const [tabId, item] of this.syncQueue.entries()) {
+      // Skip delete actions - they should always be processed
+      if (item.action === 'delete') {
+        continue
+      }
+
+      // Check if this note was recently synced
+      const recentSync = this.recentlySyncedNotes.get(tabId)
+      if (recentSync) {
+        // Read the current local note to check if content matches
+        const localNotes = localStorageService.loadTabs()
+        const localNote = localNotes.find((n) => n.id === tabId)
+        
+        if (localNote) {
+          const currentHash = this.generateContentHash(localNote.title, localNote.content)
+          
+          // If content hasn't changed since sync, remove from queue
+          if (currentHash === recentSync.contentHash) {
+            console.log('Clearing stale queue item (already synced):', tabId)
+            itemsToRemove.push(tabId)
+          }
+        }
+      }
+    }
+
+    // Remove stale items
+    for (const tabId of itemsToRemove) {
+      this.syncQueue.delete(tabId)
+    }
+
+    if (itemsToRemove.length > 0) {
+      console.log(`Cleared ${itemsToRemove.length} stale sync queue items`)
+      this.saveSyncQueue()
+      this.updateSyncState({ pendingChanges: this.syncQueue.size })
     }
   }
 
@@ -1030,6 +1219,7 @@ class SyncService {
     this.noteDeletionCallbacks.clear()
     this.pendingIncomingCallbacks.clear()
     this.pendingIncomingUpdates.clear()
+    this.recentlySyncedNotes.clear()
     this.tabDirtyChecker = null
     this.tabRecentEditChecker = null
   }

@@ -39,9 +39,12 @@ export class CloudStorageError extends Error {
 }
 
 export class CloudConflictError extends CloudStorageError {
-  constructor(message = 'Conflict') {
+  serverUpdatedAt?: string
+
+  constructor(message = 'Conflict', serverUpdatedAt?: string) {
     super(message, 409)
     this.name = 'CloudConflictError'
+    this.serverUpdatedAt = serverUpdatedAt
   }
 }
 
@@ -156,7 +159,9 @@ export async function updateNote(params: UpdateNoteParams): Promise<CloudNote> {
     const status = getErrorStatus(error)
     console.error('Failed to update note:', error, 'status:', status)
     if (status === 409) {
-      throw new CloudConflictError(error.message || 'Conflict')
+      // Extract server_updated_at from the error response if available
+      const serverUpdatedAt = data?.server_updated_at
+      throw new CloudConflictError(error.message || 'Conflict', serverUpdatedAt)
     }
     throw new CloudStorageError(error.message || 'Failed to update note', status)
   }

@@ -38,3 +38,12 @@ export interface ImageSyncItem {
   status: 'pending' | 'uploading' | 'uploaded' | 'error'
 }
 
+/**
+ * Tracks recently synced notes to prevent redundant sync operations
+ */
+export interface RecentSyncInfo {
+  cloudUpdatedAt: string
+  timestamp: number
+  contentHash: string
+}
+

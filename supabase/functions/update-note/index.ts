@@ -117,8 +117,12 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Return the current server timestamp to help client resolve conflict
       return jsonResponse(
-        { error: 'Conflict: note has been updated' },
+        { 
+          error: 'Conflict: note has been updated',
+          server_updated_at: existing[0].updated_at,
+        },
         { status: 409, headers: corsHeaders },
       );
     }
