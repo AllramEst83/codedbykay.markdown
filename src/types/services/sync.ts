@@ -23,6 +23,14 @@ export interface ConflictResolution {
   resolvedNote: TabData
 }
 
+export interface ResolveConflictOptions {
+  /**
+   * Forces merge behavior even when one side is clearly newer.
+   * Intended for true concurrency cases like optimistic concurrency conflicts (HTTP 409).
+   */
+  forceMerge?: boolean
+}
+
 export interface SyncQueueItem {
   tabId: string
   action: 'create' | 'update' | 'delete'
