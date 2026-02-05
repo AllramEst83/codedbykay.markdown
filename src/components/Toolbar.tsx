@@ -1,6 +1,7 @@
 import { useCallback, useRef, memo } from 'react'
 import { useTheme, type Theme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
+import { useTabs } from '../contexts/TabsContext'
 import { storeImage } from '../utils/imageStorage'
 import {
   Undo2,
@@ -14,6 +15,7 @@ import {
   Code,
   Link as LinkIcon,
   Image as ImageIcon,
+  Copy,
   FolderOpen,
   Save,
   Moon,
@@ -32,6 +34,7 @@ import './Toolbar.css'
 const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange, onOpenImageManager }: ToolbarProps) => {
   const { theme, setTheme, previewTheme } = useTheme() // theme still needed for select dropdown
   const { showModal } = useModal()
+  const { tabs, activeTabId } = useTabs()
   const imageInputRef = useRef<HTMLInputElement>(null)
   
   const handleAction = useCallback((action: () => void) => {
@@ -255,6 +258,51 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
     handleAction(() => editorRef!.redo())
   }, [handleAction, editorRef])
 
+  const handleCopyNote = useCallback(async () => {
+    const activeTab = tabs.find((tab) => tab.id === activeTabId)
+
+    if (!activeTab) {
+      await showModal({
+        type: 'alert',
+        title: 'No note selected',
+        message: 'There is no active note to copy.',
+        confirmText: 'OK',
+      })
+      return
+    }
+
+    const content = typeof activeTab.content === 'string'
+      ? activeTab.content
+      : String(activeTab.content ?? '')
+
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      await showModal({
+        type: 'alert',
+        title: 'Copy not supported',
+        message: 'Your browser does not support automatic copying. You can still select and copy the note content manually.',
+        confirmText: 'OK',
+      })
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(content)
+      await showModal({
+        type: 'alert',
+        title: 'Copied',
+        message: 'The current note content has been copied to your clipboard.',
+        confirmText: 'OK',
+      })
+    } catch {
+      await showModal({
+        type: 'alert',
+        title: 'Copy failed',
+        message: 'Could not copy to clipboard. You can still select and copy the note content manually.',
+        confirmText: 'OK',
+      })
+    }
+  }, [tabs, activeTabId, showModal])
+
   return (
     <div 
       className="toolbar"
@@ -460,6 +508,14 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
           aria-label="Manage Images"
         >
           <Images size={16} />
+        </button>
+        <button 
+          className="toolbar-button" 
+          onClick={handleCopyNote}
+          title="Copy Note"
+          aria-label="Copy Note"
+        >
+          <Copy size={16} />
         </button>
         <button 
           className="toolbar-button" 
