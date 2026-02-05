@@ -962,7 +962,8 @@ class SyncService {
         console.warn('Conflict during re-upload, retrying...')
         // Small delay before retry to let other updates settle
         await new Promise(resolve => setTimeout(resolve, 500 * attempt))
-        return this.handleUpdateConflict(localNote, cloudId, attempt + 1)
+        // Retry using the latest merged note rather than the stale pre-conflict note.
+        return this.handleUpdateConflict(noteToUpload, cloudId, attempt + 1)
       }
       throw error
     }

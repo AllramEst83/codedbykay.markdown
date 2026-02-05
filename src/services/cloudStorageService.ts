@@ -157,7 +157,12 @@ export async function updateNote(params: UpdateNoteParams): Promise<CloudNote> {
 
   if (error) {
     const status = getErrorStatus(error)
-    console.error('Failed to update note:', error, 'status:', status)
+    // 409 conflicts are expected under concurrent edits; the sync layer handles them.
+    if (status !== 409) {
+      console.error('Failed to update note:', error, 'status:', status)
+    } else {
+      console.warn('Update note conflict (409) - will resolve via merge')
+    }
     if (status === 409) {
       // Extract server_updated_at from the error response if available
       const serverUpdatedAt = data?.server_updated_at
