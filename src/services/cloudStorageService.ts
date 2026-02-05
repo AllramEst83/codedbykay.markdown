@@ -157,18 +157,16 @@ export async function updateNote(params: UpdateNoteParams): Promise<CloudNote> {
 
   if (error) {
     const status = getErrorStatus(error)
-    // 409 conflicts are expected under concurrent edits; the sync layer handles them.
-    if (status !== 409) {
-      console.error('Failed to update note:', error, 'status:', status)
-    } else {
-      console.warn('Update note conflict (409) - will resolve via merge')
-    }
-    if (status === 409) {
-      // Extract server_updated_at from the error response if available
-      const serverUpdatedAt = data?.server_updated_at
-      throw new CloudConflictError(error.message || 'Conflict', serverUpdatedAt)
-    }
+    console.error('Failed to update note:', error, 'status:', status)
     throw new CloudStorageError(error.message || 'Failed to update note', status)
+  }
+
+  // Graceful conflict path: Edge Function returns 200 with a conflict marker.
+  if (data?.conflict) {
+    if (data?.server_time) {
+      updateServerTime(data.server_time)
+    }
+    throw new CloudConflictError('Conflict', data?.server_updated_at)
   }
 
   if (!data?.note) {

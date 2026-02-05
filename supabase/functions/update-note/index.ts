@@ -117,13 +117,15 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Return the current server timestamp to help client resolve conflict
+      // Return 200 + conflict marker so clients can resolve gracefully without a noisy 409 network error.
       return jsonResponse(
         { 
+          conflict: true,
           error: 'Conflict: note has been updated',
           server_updated_at: existing[0].updated_at,
+          server_time: new Date().toISOString(),
         },
-        { status: 409, headers: corsHeaders },
+        { status: 200, headers: corsHeaders },
       );
     }
 
