@@ -306,7 +306,7 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
         confirmText: 'OK',
       })
     }
-  }, [tabs, activeTabId, showModal])
+  }, [tabs, activeTabId, showModal, editorRef])
 
   return (
     <div 
@@ -517,6 +517,7 @@ const ToolbarComponent = ({ editorRef, onSave, onOpen, onCompressingImageChange,
         <button 
           className="toolbar-button" 
           onClick={handleCopyNote}
+          onMouseDown={(e) => e.preventDefault()}
           title="Copy Note"
           aria-label="Copy Note"
         >

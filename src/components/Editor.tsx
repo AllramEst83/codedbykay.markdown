@@ -187,6 +187,12 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
         applyIndentRight(view)
         view.focus()
       }
+    },
+    focus: () => {
+      const view = viewRef.current
+      if (view) {
+        view.focus()
+      }
     }
   }))
 

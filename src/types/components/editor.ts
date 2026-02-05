@@ -14,4 +14,5 @@ export interface EditorRef {
   redo: () => void
   indentLeft: () => void
   indentRight: () => void
+  focus: () => void
 }

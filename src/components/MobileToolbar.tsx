@@ -293,6 +293,10 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
       copyTimeoutRef.current = window.setTimeout(() => {
         setCopySuccess(false)
       }, 2000)
+      // Restore focus to editor so the keyboard stays open on mobile
+      if (editorRef) {
+        editorRef.focus()
+      }
     } catch {
       await showModal({
         type: 'alert',
@@ -301,7 +305,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
         confirmText: 'OK',
       })
     }
-  }, [tabs, activeTabId, showModal])
+  }, [tabs, activeTabId, showModal, editorRef])
 
   // Calculate bottom position: when keyboard is visible, position toolbar above it
   // keyboardOffset represents the height of the keyboard
@@ -512,6 +516,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
               <button 
                 className="mobile-toolbar-button" 
                 onClick={handleCopyNote}
+                onMouseDown={(e) => e.preventDefault()}
                 title="Copy Note"
                 aria-label="Copy Note"
               >
