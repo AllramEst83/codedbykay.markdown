@@ -1,4 +1,4 @@
-import { useCallback, useRef, memo } from 'react'
+import { useCallback, useRef, memo, useState } from 'react'
 import { useTheme, type Theme } from '../contexts/ThemeContext'
 import { useModal } from '../contexts/ModalContext'
 import { useTabs } from '../contexts/TabsContext'
@@ -17,6 +17,7 @@ import {
   Image as ImageIcon,
   Images,
   Copy,
+  Check,
   Heading,
   FolderOpen,
   Save,
@@ -37,6 +38,8 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
   const { showModal } = useModal()
   const { tabs, activeTabId } = useTabs()
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const [copySuccess, setCopySuccess] = useState(false)
+  const copyTimeoutRef = useRef<number | null>(null)
   
   const handleAction = useCallback((action: () => void) => {
     if (editorRef) {
@@ -282,12 +285,14 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
 
     try {
       await navigator.clipboard.writeText(content)
-      await showModal({
-        type: 'alert',
-        title: 'Copied',
-        message: 'The current note content has been copied to your clipboard.',
-        confirmText: 'OK',
-      })
+      // Show temporary checkmark on successful copy
+      setCopySuccess(true)
+      if (copyTimeoutRef.current !== null) {
+        window.clearTimeout(copyTimeoutRef.current)
+      }
+      copyTimeoutRef.current = window.setTimeout(() => {
+        setCopySuccess(false)
+      }, 2000)
     } catch {
       await showModal({
         type: 'alert',
@@ -510,7 +515,7 @@ const MobileToolbarComponent = ({ editorRef, isVisible, keyboardOffset, onSave, 
                 title="Copy Note"
                 aria-label="Copy Note"
               >
-                <Copy size={18} />
+                {copySuccess ? <Check size={18} /> : <Copy size={18} />}
               </button>
               <button 
                 className="mobile-toolbar-button" 
