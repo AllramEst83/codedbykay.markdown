@@ -11,12 +11,24 @@ import { syncImageReferencesInContent, migrateAllImagesToCloud, prefetchImagesIn
 import { getDeviceId } from '../utils/deviceId'
 import type { TabData } from '../types/services'
 import type { CloudNote, SyncState, SyncQueueItem, RecentSyncInfo } from '../types/services/sync'
+import type { NotesChangeRow } from '../types/services/realtime'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const SYNC_QUEUE_KEY = 'markdown-editor-sync-queue'
 const SYNC_DEBOUNCE_MS = 5000 // 5 seconds debounce for cloud sync
 const MAX_RETRIES = 5
 const RETRY_BASE_DELAY = 2000 // 2 seconds
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isNotesChangeRow(value: unknown): value is NotesChangeRow {
+  if (!isRecord(value)) return false
+  if (typeof value.id !== 'string') return false
+  const deviceId = value.device_id
+  return deviceId === null || typeof deviceId === 'string' || typeof deviceId === 'undefined'
+}
 
 /**
  * Sync Service Class
@@ -95,13 +107,14 @@ class SyncService {
 
   private resolveNoteConflict(
     localNote: TabData,
-    cloudNote: CloudNote
+    cloudNote: CloudNote,
+    options?: { forceMerge?: boolean }
   ): {
     mergedNote: TabData
     shouldUpload: boolean
     shouldUpdateLocal: boolean
   } {
-    const resolution = resolveConflict(localNote, cloudNote)
+    const resolution = resolveConflict(localNote, cloudNote, options)
     const mergedNote: TabData = {
       ...resolution.resolvedNote,
       cloudId: localNote.cloudId || cloudNote.id,
@@ -569,12 +582,13 @@ class SyncService {
   /**
    * Handles realtime database events
    */
-  private async handleRealtimeEvent(payload: any): Promise<void> {
+  private async handleRealtimeEvent(payload: { eventType: string; new?: unknown; old?: unknown }): Promise<void> {
     console.log('Realtime event:', payload.eventType, payload)
 
     try {
       switch (payload.eventType) {
         case 'INSERT': {
+          if (!isNotesChangeRow(payload.new)) return
           const rawNote = payload.new
           
           // Skip if we created this note (same device)
@@ -592,6 +606,7 @@ class SyncService {
         }
 
         case 'UPDATE': {
+          if (!isNotesChangeRow(payload.new)) return
           const rawNote = payload.new
           
           // Skip if we updated this note (same device)
@@ -609,7 +624,7 @@ class SyncService {
           let localNote = localNotes.find((n) => n.cloudId === rawNote.id || n.id === rawNote.id)
           if (!localNote) {
             const mappedLocalId = Array.from(this.localToCloudIdMap.entries())
-              .find(([_, cloudId]) => cloudId === rawNote.id)?.[0]
+              .find(([, cloudId]) => cloudId === rawNote.id)?.[0]
             if (mappedLocalId) {
               localNote = localNotes.find((n) => n.id === mappedLocalId)
             }
@@ -635,13 +650,14 @@ class SyncService {
         }
 
         case 'DELETE': {
+          if (!isNotesChangeRow(payload.old)) return
           const deletedNote = payload.old
           
           // Find local note by cloud ID
           const localNotes = localStorageService.loadTabs()
           const localNote = localNotes.find((n) => n.cloudId === deletedNote.id || n.id === deletedNote.id)
           const localId = localNote?.id || Array.from(this.localToCloudIdMap.entries())
-            .find(([_, cloudId]) => cloudId === deletedNote.id)?.[0]
+            .find(([, cloudId]) => cloudId === deletedNote.id)?.[0]
 
           if (localId) {
             // Remove from local storage
@@ -893,7 +909,9 @@ class SyncService {
       return
     }
 
-    const { mergedNote, shouldUpload, shouldUpdateLocal } = this.resolveNoteConflict(localNote, cloudNote)
+    const { mergedNote, shouldUpload, shouldUpdateLocal } = this.resolveNoteConflict(localNote, cloudNote, {
+      forceMerge: true,
+    })
     const baseNote: TabData = {
       ...mergedNote,
       cloudId: localNote.cloudId || cloudNote.id,
@@ -1139,20 +1157,48 @@ class SyncService {
     cloudNote: CloudNote,
     sourceLabel: string
   ): Promise<void> {
-    const updatedNote = this.buildLocalNoteFromCloud(localNote, cloudNote)
-
-    if (!this.hasNoteContentChanged(updatedNote, localNote)) {
+    // Fast-path: no changes (after normalization) -> refresh metadata only
+    if (areNotesIdentical(localNote, cloudNote)) {
       this.persistCloudMetadata(localNote, cloudNote)
       this.markNoteSynced(localNote.id, cloudNote.updated_at, cloudNote.title, cloudNote.content)
       console.log(`No content changes from ${sourceLabel}, metadata refreshed`)
       return
     }
 
-    await prefetchImagesInContent(updatedNote.content)
-    localStorageService.saveTabImmediately(updatedNote, { preserveLastSaved: true })
-    console.log(`Updating note from ${sourceLabel}:`, updatedNote)
-    this.triggerNoteUpdate([updatedNote])
-    this.markNoteSynced(localNote.id, cloudNote.updated_at, updatedNote.title, updatedNote.content)
+    const resolution = resolveConflict(localNote, cloudNote)
+
+    if (resolution.strategy === 'local-wins') {
+      console.log(`Local note is newer, skipping update from ${sourceLabel}:`, localNote.id)
+      return
+    }
+
+    const resolvedNote: TabData =
+      resolution.strategy === 'cloud-wins'
+        ? this.buildLocalNoteFromCloud(localNote, cloudNote)
+        : {
+            ...resolution.resolvedNote,
+            cloudId: localNote.cloudId || cloudNote.id,
+            cloudUpdatedAt: cloudNote.updated_at,
+          }
+
+    // If only metadata changed (e.g. timestamps), avoid churn.
+    if (!this.hasNoteContentChanged(resolvedNote, localNote)) {
+      this.persistCloudMetadata(localNote, cloudNote)
+      this.markNoteSynced(localNote.id, cloudNote.updated_at, cloudNote.title, cloudNote.content)
+      console.log(`No content changes from ${sourceLabel}, metadata refreshed`)
+      return
+    }
+
+    await prefetchImagesInContent(resolvedNote.content)
+    localStorageService.saveTabImmediately(resolvedNote, { preserveLastSaved: true })
+    console.log(`Updating note from ${sourceLabel}:`, resolvedNote)
+    this.triggerNoteUpdate([resolvedNote])
+    this.markNoteSynced(localNote.id, cloudNote.updated_at, resolvedNote.title, resolvedNote.content)
+
+    // If we had to merge to resolve an ambiguity, upload the merged result to converge devices.
+    if (resolution.strategy === 'merge' && !areNotesIdentical(resolvedNote, cloudNote)) {
+      this.queueNoteForSync(localNote.id, 'update')
+    }
   }
 
   /**

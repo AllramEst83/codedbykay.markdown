@@ -4,7 +4,8 @@
  */
 
 import type { TabData } from '../types/services'
-import type { CloudNote, ConflictResolution } from '../types/services/sync'
+import type { CloudNote, ConflictResolution, ResolveConflictOptions } from '../types/services/sync'
+import { getServerTimeOffsetMs } from './serverTimeService'
 
 const DEFAULT_TITLE = 'Untitled'
 const MERGE_SEPARATOR = '\n\n---\n\n'
@@ -109,24 +110,82 @@ function mergeContent(localContent: string, cloudContent: string): string {
   return mergedLines.join('\n')
 }
 
+function getAlignedLocalTimestamp(localNote: TabData): number {
+  const localTimestamp = localNote.lastSaved || 0
+  const serverOffset = getServerTimeOffsetMs()
+
+  // If local timestamp is already aligned (or we don't know the offset), use as-is.
+  if (localNote.lastSavedServerTime || serverOffset === null) {
+    return localTimestamp
+  }
+
+  return localTimestamp + serverOffset
+}
+
 /**
  * Resolves conflicts between local and cloud notes.
- * Always merges divergent content to avoid data loss.
+ *
+ * Strategy:
+ * - If one side is clearly newer (based on timestamps), pick the winner.
+ * - If timestamps are equal/ambiguous, merge to avoid data loss.
+ * - Optionally force merge (e.g. after an optimistic concurrency conflict).
  */
 export function resolveConflict(
   localNote: TabData,
-  cloudNote: CloudNote
+  cloudNote: CloudNote,
+  options?: ResolveConflictOptions
 ): ConflictResolution {
+  const cloudTimestamp = Date.parse(cloudNote.updated_at)
+  const hasValidCloudTimestamp = Number.isFinite(cloudTimestamp)
+  const localTimestampAligned = getAlignedLocalTimestamp(localNote)
+
+  if (options?.forceMerge) {
+    return {
+      strategy: 'merge',
+      resolvedNote: mergeNotes(localNote, cloudNote, hasValidCloudTimestamp ? cloudTimestamp : null),
+    }
+  }
+
+  if (hasValidCloudTimestamp) {
+    // Local is newer - local wins
+    if (localTimestampAligned > cloudTimestamp) {
+      return {
+        strategy: 'local-wins',
+        resolvedNote: {
+          ...localNote,
+          cloudId: localNote.cloudId || cloudNote.id,
+          cloudUpdatedAt: cloudNote.updated_at,
+        },
+      }
+    }
+
+    // Cloud is newer - cloud wins
+    if (cloudTimestamp > localTimestampAligned) {
+      return {
+        strategy: 'cloud-wins',
+        resolvedNote: {
+          ...localNote,
+          title: cloudNote.title,
+          content: cloudNote.content,
+          lastSaved: cloudTimestamp,
+          lastSavedServerTime: true,
+          cloudId: localNote.cloudId || cloudNote.id,
+          cloudUpdatedAt: cloudNote.updated_at,
+        },
+      }
+    }
+  }
+
   return {
     strategy: 'merge',
-    resolvedNote: mergeNotes(localNote, cloudNote),
+    resolvedNote: mergeNotes(localNote, cloudNote, hasValidCloudTimestamp ? cloudTimestamp : null),
   }
 }
 
 /**
  * Merges two notes by combining titles and content.
  */
-function mergeNotes(localNote: TabData, cloudNote: CloudNote): TabData {
+function mergeNotes(localNote: TabData, cloudNote: CloudNote, cloudTimestamp: number | null): TabData {
   const title = mergeTitles(localNote.title, cloudNote.title)
   const content = mergeContent(localNote.content, cloudNote.content)
 
@@ -134,6 +193,13 @@ function mergeNotes(localNote: TabData, cloudNote: CloudNote): TabData {
     ...localNote,
     title,
     content,
+    ...(cloudTimestamp !== null
+      ? {
+          // Make the merged note slightly newer than the cloud version to ensure it can be uploaded.
+          lastSaved: cloudTimestamp + 1,
+          lastSavedServerTime: true,
+        }
+      : {}),
     cloudId: localNote.cloudId || cloudNote.id,
     cloudUpdatedAt: cloudNote.updated_at,
   }
@@ -151,8 +217,11 @@ export function shouldUploadToCloud(
     return true
   }
 
-  const mergedNote = mergeNotes(localNote, cloudNote)
-  return !areNotesIdentical(mergedNote, cloudNote)
+  const resolution = resolveConflict(localNote, cloudNote)
+  if (resolution.strategy === 'cloud-wins') {
+    return false
+  }
+  return !areNotesIdentical(resolution.resolvedNote, cloudNote)
 }
 
 /**
@@ -167,8 +236,11 @@ export function shouldDownloadFromCloud(
     return true
   }
 
-  const mergedNote = mergeNotes(localNote, cloudNote)
-  return !areNotesIdentical(mergedNote, localNote)
+  const resolution = resolveConflict(localNote, cloudNote)
+  if (resolution.strategy === 'local-wins') {
+    return false
+  }
+  return !areNotesIdentical(resolution.resolvedNote, localNote)
 }
 
 /**
