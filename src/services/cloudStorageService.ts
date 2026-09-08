@@ -6,12 +6,14 @@
 
 import { getSupabaseClient } from '../supabase/client'
 import { updateServerTime } from './serverTimeService'
+import * as yjsDocService from './yjsDocService'
 import type { CloudNote } from '../types/services/sync'
 import type { TabData } from '../types/services'
 
 export interface CreateNoteParams {
   title: string
   content: string
+  content_format?: 'plain' | 'yjs'
   local_id?: string
   device_id?: string
 }
@@ -20,6 +22,7 @@ export interface UpdateNoteParams {
   id: string
   title?: string
   content?: string
+  content_format?: 'plain' | 'yjs'
   device_id?: string
   expected_updated_at?: string
 }
@@ -53,7 +56,10 @@ export function isConflictError(error: unknown): error is CloudConflictError {
 }
 
 /**
- * Creates a new note in the cloud
+ * Creates a new note in the cloud.
+ * Note: the returned CloudNote's `content` is not populated by this call (the
+ * create-note function omits ciphertext from its response) - fetch via getNote/getNotes
+ * if the decrypted content is needed.
  */
 export async function createNote(params: CreateNoteParams): Promise<CloudNote> {
   const supabase = getSupabaseClient()
@@ -145,7 +151,10 @@ function getErrorStatus(error: { status?: number; context?: { status?: number } 
 }
 
 /**
- * Updates an existing note in the cloud
+ * Updates an existing note in the cloud.
+ * Note: the returned CloudNote's `content` is not populated by this call (the
+ * update-note function omits ciphertext from its response) - fetch via getNote/getNotes
+ * if the decrypted content is needed.
  */
 export async function updateNote(params: UpdateNoteParams): Promise<CloudNote> {
   const supabase = getSupabaseClient()
@@ -259,12 +268,24 @@ export async function deleteImage(path: string): Promise<void> {
 }
 
 /**
- * Converts a TabData to CreateNoteParams
+ * Converts a TabData to CreateNoteParams.
+ * For a Yjs-backed tab, `content` is the tab's *live doc* state (not `tab.content`,
+ * which is only a display mirror) - this guarantees the upload always reflects the
+ * doc's current state even if the mirror hasn't caught up yet.
  */
-export function tabDataToCreateParams(
+export async function tabDataToCreateParams(
   tab: TabData,
   deviceId: string
-): CreateNoteParams {
+): Promise<CreateNoteParams> {
+  if (tab.contentFormat === 'yjs') {
+    return {
+      title: tab.title,
+      content: await yjsDocService.encodeStateBase64(tab.id),
+      content_format: 'yjs',
+      local_id: tab.id,
+      device_id: deviceId,
+    }
+  }
   return {
     title: tab.title,
     content: tab.content,
@@ -274,14 +295,24 @@ export function tabDataToCreateParams(
 }
 
 /**
- * Converts a TabData to UpdateNoteParams
- * Requires the cloud note ID
+ * Converts a TabData to UpdateNoteParams. Requires the cloud note ID.
+ * See tabDataToCreateParams for why Yjs-backed tabs encode from the live doc.
  */
-export function tabDataToUpdateParams(
+export async function tabDataToUpdateParams(
   tab: TabData,
   cloudId: string,
   deviceId: string
-): UpdateNoteParams {
+): Promise<UpdateNoteParams> {
+  if (tab.contentFormat === 'yjs') {
+    return {
+      id: cloudId,
+      title: tab.title,
+      content: await yjsDocService.encodeStateBase64(tab.id),
+      content_format: 'yjs',
+      device_id: deviceId,
+      expected_updated_at: tab.cloudUpdatedAt,
+    }
+  }
   return {
     id: cloudId,
     title: tab.title,
@@ -292,8 +323,11 @@ export function tabDataToUpdateParams(
 }
 
 /**
- * Converts a CloudNote to TabData 
+ * Converts a CloudNote to TabData for a note with no local counterpart yet.
  * By using the cloud ID, each synced note gets a unique local ID that won't collide.
+ * For 'yjs' notes this only sets up the plain-format-shaped fields - callers must
+ * still merge the Yjs content into the doc themselves (see syncService.deriveDisplayFields),
+ * since decoding requires the doc registry this module doesn't have access to.
  */
 export function cloudNoteToTabData(cloudNote: CloudNote): TabData {
   return {
@@ -304,5 +338,6 @@ export function cloudNoteToTabData(cloudNote: CloudNote): TabData {
     lastSavedServerTime: true,
     cloudId: cloudNote.id,
     cloudUpdatedAt: cloudNote.updated_at,
+    contentFormat: cloudNote.content_format,
   }
 }

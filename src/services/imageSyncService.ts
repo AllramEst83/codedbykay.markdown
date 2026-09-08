@@ -3,13 +3,15 @@
  * Handles uploading images to Supabase Storage and managing local cache
  */
 
+import * as Y from 'yjs'
 import { getSupabaseClient } from '../supabase/client'
 import { uploadImage, deleteImage } from './cloudStorageService'
-import { 
+import {
   getImageUrl,
-  getAllStoredImages 
+  getAllStoredImages
 } from '../utils/imageStorage'
 import { openDB, IDBPDatabase } from 'idb'
+import { getOrCreateNoteDoc, REMOTE_UPDATE_ORIGIN } from './yjsDocService'
 
 const CACHE_DB_NAME = 'markdown-editor-cloud-images'
 const CACHE_DB_VERSION = 1
@@ -196,6 +198,69 @@ export async function syncImageReferencesInContent(
   }
 
   return updatedContent
+}
+
+/**
+ * Replaces IndexedDB image references with Supabase Storage URLs directly on a
+ * Yjs-backed note's Y.Text, instead of a plain string `.replace()`. Each upload is
+ * awaited sequentially (per image), so the placeholder's position is captured as a
+ * Yjs relative position *before* the upload starts and resolved back to an absolute
+ * index *after* it finishes - relative positions survive any concurrent edits made
+ * to the doc while the upload is in flight (e.g. from a realtime merge or continued
+ * local typing), which raw string offsets would not. If a range was concurrently
+ * deleted, its relative position resolves to null and that replacement is skipped
+ * rather than corrupting the doc at a stale offset.
+ *
+ * Returns true if any replacement was made.
+ */
+export async function syncImageReferencesInYText(tabId: string, noteId?: string): Promise<boolean> {
+  const { doc, ytext } = getOrCreateNoteDoc(tabId)
+  const imageUrlPattern = /md-editor-image:\/\/([a-zA-Z0-9-]+)/g
+  const matches = Array.from(ytext.toString().matchAll(imageUrlPattern))
+
+  if (matches.length === 0) {
+    return false
+  }
+
+  let changed = false
+
+  for (const match of matches) {
+    const imageId = match[1]
+    const start = match.index
+    if (start === undefined) {
+      continue
+    }
+    const end = start + match[0].length
+
+    const startRelPos = Y.createRelativePositionFromTypeIndex(ytext, start)
+    const endRelPos = Y.createRelativePositionFromTypeIndex(ytext, end)
+
+    let cloudUrl: string
+    try {
+      cloudUrl = await uploadLocalImageToCloud(imageId, noteId)
+    } catch (error) {
+      console.error(`Failed to sync image ${imageId}:`, error)
+      continue
+    }
+
+    const startAbs = Y.createAbsolutePositionFromRelativePosition(startRelPos, doc)
+    const endAbs = Y.createAbsolutePositionFromRelativePosition(endRelPos, doc)
+
+    if (!startAbs || !endAbs || startAbs.type !== ytext || endAbs.type !== ytext) {
+      console.warn(`Skipping image URL replacement for ${imageId} - placeholder range no longer resolvable`)
+      continue
+    }
+
+    // Not a user keystroke - use the same non-undoable origin as remote merges so
+    // this background substitution doesn't show up in the user's local undo stack.
+    doc.transact(() => {
+      ytext.delete(startAbs.index, endAbs.index - startAbs.index)
+      ytext.insert(startAbs.index, cloudUrl)
+    }, REMOTE_UPDATE_ORIGIN)
+    changed = true
+  }
+
+  return changed
 }
 
 /**

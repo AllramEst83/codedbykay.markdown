@@ -79,6 +79,7 @@ Deno.serve(async (req) => {
       user_id: data.user_id,
       title: data.title,
       content: decryptedContent,
+      content_format: data.content_format,
       created_at: data.created_at,
       updated_at: data.updated_at,
       last_synced_at: data.last_synced_at,

@@ -1,3 +1,4 @@
+import type { Text as YText } from 'yjs'
 import { TabData, SyncState } from '../services'
 
 export interface TabsContextType {
@@ -12,6 +13,8 @@ export interface TabsContextType {
   reorderTabs: (fromIndex: number, toIndex: number) => void
   isTabDirty: (tabId: string) => boolean
   hasPendingIncomingChange: (tabId: string) => boolean
+  /** Returns the Yjs text type backing a tab's content, or undefined for legacy ('plain') tabs. */
+  getYText: (tabId: string) => YText | undefined
   saveState: Map<string, 'saving' | 'saved' | 'idle'>
   syncState: SyncState
 }

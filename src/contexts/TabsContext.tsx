@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { localStorageService } from '../services/localStorageService'
 import { syncService } from '../services/syncService'
+import * as yjsDocService from '../services/yjsDocService'
 import { useAuthStore } from './AuthContext'
 import type { TabData } from '../types/services'
 import type { TabsContextType, TabsProviderProps } from '../types/contexts'
@@ -57,6 +58,41 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
   // Track tabs that have been edited by the user and need cloud sync
   // This prevents queuing syncs for tabs that were updated via realtime (not user edits)
   const tabsNeedingSyncRef = useRef<Set<string>>(new Set())
+
+  // Mirrors `tabs` for callbacks (updateTabTitle, etc.) that need to read current
+  // tab data (like contentFormat) without taking `tabs` as a dependency
+  const tabsRef = useRef<TabData[]>(tabs)
+  useEffect(() => {
+    tabsRef.current = tabs
+  }, [tabs])
+
+  // Tracks legacy ('plain') tabs currently mid-migration to Yjs, so a second edit
+  // arriving before the first migration's seed finishes doesn't kick off a second
+  // concurrent seed for the same tab (see migrateLegacyTabToYjs).
+  const migratingTabsRef = useRef<Set<string>>(new Set())
+
+  // Lazily migrates a legacy note to Yjs on its first edit on this device (per-note,
+  // no batch job). The tab stays in plain-format mode, completely unaffected, until
+  // the doc has been seeded with `content`/`title` - only then does contentFormat
+  // flip to 'yjs', so nothing about the existing plain-mode save/sync path changes
+  // while migration is in flight.
+  const migrateLegacyTabToYjs = useCallback((tabId: string, content: string, title: string) => {
+    if (migratingTabsRef.current.has(tabId)) {
+      return
+    }
+    migratingTabsRef.current.add(tabId)
+    void yjsDocService.seedFromPlainText(tabId, content, title).then(() => {
+      // If further plain-mode edits landed while the seed above was still awaiting
+      // IndexedDB load, catch the doc up to the latest content before flipping over -
+      // safe here specifically because nothing else has ever seen this doc yet.
+      const latestTab = tabsRef.current.find((t) => t.id === tabId)
+      if (latestTab && (latestTab.content !== content || latestTab.title !== title)) {
+        yjsDocService.resetToPlainText(tabId, latestTab.content, latestTab.title)
+      }
+      migratingTabsRef.current.delete(tabId)
+      setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, contentFormat: 'yjs' } : t)))
+    })
+  }, [])
   
   // Track last saved state for each tab to detect dirty tabs
   // Only initialize for tabs loaded from localStorage, not newly created ones
@@ -216,7 +252,11 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
       id: `tab-${Date.now()}`,
       title: titleString,
       content: contentString,
+      contentFormat: 'yjs',
     }
+    // New notes are Yjs-backed from creation - seed the doc with any initial content/title
+    // now so the editor and sync layer see a fully-formed doc immediately.
+    yjsDocService.seedNewNote(newTab.id, contentString, titleString)
     setTabs((prev) => [...prev, newTab])
     setActiveTabId(newTab.id)
     setSaveState((prev) => {
@@ -254,7 +294,11 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     if (isAuthenticated) {
       syncService.queueNoteForSync(tabId, 'delete')
     }
-    
+
+    // The note is gone for good (closing a tab deletes it, it's not a "hide" action) -
+    // free its in-memory doc and local IndexedDB store.
+    yjsDocService.disposeNoteDoc(tabId)
+
     // Clean up save state, last saved state, and last edit time
     setSaveState((prev) => {
       const newState = new Map(prev)
@@ -284,22 +328,36 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
     
     // Track last edit time for this tab (used to defer incoming sync updates)
     lastEditTimeRef.current.set(tabId, Date.now())
-    
+
     // Mark this tab as needing cloud sync (user edit, not realtime update)
     tabsNeedingSyncRef.current.add(tabId)
-    
+
+    const tab = tabsRef.current.find((t) => t.id === tabId)
+    if (tab && tab.contentFormat !== 'yjs') {
+      migrateLegacyTabToYjs(tabId, contentString, tab.title)
+    }
+
     setTabs((prev) =>
       prev.map((tab) => (tab.id === tabId ? { ...tab, content: contentString } : tab))
     )
-  }, [])
+  }, [migrateLegacyTabToYjs])
 
   const updateTabTitle = useCallback((tabId: string, title: string) => {
     // Track last edit time for this tab (used to defer incoming sync updates)
     lastEditTimeRef.current.set(tabId, Date.now())
-    
+
     // Mark this tab as needing cloud sync (user edit, not realtime update)
     tabsNeedingSyncRef.current.add(tabId)
-    
+
+    const tab = tabsRef.current.find((t) => t.id === tabId)
+    if (tab?.contentFormat === 'yjs') {
+      // Route the title through the doc's meta map too, so it gets Yjs's
+      // per-key CRDT merge instead of the legacy string-heuristic merge.
+      yjsDocService.setTitle(tabId, title)
+    } else if (tab) {
+      migrateLegacyTabToYjs(tabId, tab.content, title)
+    }
+
     setTabs((prev) =>
       prev.map((tab) => {
         if (tab.id === tabId) {
@@ -309,7 +367,7 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
         return tab
       })
     )
-  }, [])
+  }, [migrateLegacyTabToYjs])
 
   const reorderTabs = useCallback((fromIndex: number, toIndex: number) => {
     setTabs((prev) => {
@@ -359,6 +417,24 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
 
   // Memoize tab IDs string to prevent unnecessary metadata updates
   const tabIdsString = useMemo(() => tabs.map(t => t.id).join(','), [tabs])
+
+  // Reconcile a Yjs-backed tab's title in React state when a remote merge changes
+  // it outside of local typing (mirrors how onNoteUpdate reconciles content below,
+  // scoped to just the title key). Keyed on id+format so a legacy tab flipping to
+  // 'yjs' (Phase 7 migration) also gets subscribed.
+  const yjsTabFormatsString = useMemo(
+    () => tabs.filter((t) => t.contentFormat === 'yjs').map((t) => t.id).join(','),
+    [tabs]
+  )
+  useEffect(() => {
+    const yjsTabIds = yjsTabFormatsString ? yjsTabFormatsString.split(',') : []
+    const unsubscribers = yjsTabIds.map((tabId) =>
+      yjsDocService.onTitleChange(tabId, (title) => {
+        setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, title } : t)))
+      })
+    )
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe())
+  }, [yjsTabFormatsString])
   
   // Update metadata when tab structure or active tab changes
   useEffect(() => {
@@ -398,6 +474,18 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
   const hasPendingIncomingChange = useCallback((tabId: string): boolean => {
     return pendingIncomingTabIds.has(tabId)
   }, [pendingIncomingTabIds])
+
+  const getYText = useCallback((tabId: string) => {
+    // Reads `tabs` directly (not tabsRef) - this is called synchronously during
+    // render (App.tsx computes the Editor's `ytext` prop from it), and tabsRef only
+    // catches up to `tabs` via an effect one tick later. A brand-new tab's contentFormat
+    // wouldn't be visible yet on its very first render if this went through the ref.
+    const tab = tabs.find((t) => t.id === tabId)
+    if (tab?.contentFormat !== 'yjs') {
+      return undefined
+    }
+    return yjsDocService.getOrCreateNoteDoc(tabId).ytext
+  }, [tabs])
 
   // Check if a tab was recently edited within the grace period
   // This is used to defer incoming sync updates during active editing
@@ -548,6 +636,7 @@ export const TabsProvider = ({ children }: TabsProviderProps) => {
         reorderTabs,
         isTabDirty,
         hasPendingIncomingChange,
+        getYText,
         saveState,
         syncState,
       }}

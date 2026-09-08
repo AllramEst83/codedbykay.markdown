@@ -8,6 +8,7 @@ interface UpdateNoteRequest {
   id: string;
   title?: string;
   content?: string;
+  content_format?: 'plain' | 'yjs';
   device_id?: string;
   expected_updated_at?: string;
 }
@@ -72,6 +73,10 @@ Deno.serve(async (req) => {
       updates.auth_tag = encrypted.authTag;
     }
 
+    if (body.content_format !== undefined) {
+      updates.content_format = body.content_format;
+    }
+
     if (body.device_id !== undefined) {
       updates.device_id = body.device_id;
     }
@@ -129,8 +134,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Never echo ciphertext/encryption metadata back to the client - only the
+    // fields callers actually use (id/updated_at/etc). Content is fetched
+    // (and decrypted) separately via get-note/get-notes.
+    const note = {
+      id: updatedNote.id,
+      user_id: updatedNote.user_id,
+      title: updatedNote.title,
+      content_format: updatedNote.content_format,
+      created_at: updatedNote.created_at,
+      updated_at: updatedNote.updated_at,
+      last_synced_at: updatedNote.last_synced_at,
+      device_id: updatedNote.device_id,
+      local_id: updatedNote.local_id,
+    };
+
     return jsonResponse(
-      { note: updatedNote, server_time: new Date().toISOString() },
+      { note, server_time: new Date().toISOString() },
       { status: 200, headers: corsHeaders },
     );
   } catch (err) {

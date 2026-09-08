@@ -1,8 +1,9 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap, undo, redo } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, undo as cmUndo, redo as cmRedo } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
+import { yCollab, yUndoManagerKeymap } from 'y-codemirror.next'
 import { useTheme } from '../contexts/ThemeContext'
 import type { EditorProps, EditorRef } from '../types/components'
 
@@ -22,6 +23,11 @@ const getSelectedLines = (view: EditorView) => {
 
   return { doc, lines }
 }
+
+// y-codemirror.next doesn't export its `undo`/`redo` StateCommands directly from the
+// package root - pull them out of its own default keymap instead of reaching into dist internals.
+const yUndoCommand = yUndoManagerKeymap.find((binding) => binding.key === 'Mod-z')?.run
+const yRedoCommand = yUndoManagerKeymap.find((binding) => binding.key === 'Mod-y')?.run
 
 const applyIndentLeft = (view: EditorView) => {
   const { doc, lines } = getSelectedLines(view)
@@ -64,7 +70,7 @@ const applyIndentRight = (view: EditorView) => {
   }
 }
 
-const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }, ref) => {
+const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll, ytext }, ref) => {
   const { editorTheme } = useTheme()
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -163,14 +169,22 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
     undo: () => {
       const view = viewRef.current
       if (view) {
-        undo(view)
+        if (ytext) {
+          yUndoCommand?.(view)
+        } else {
+          cmUndo(view)
+        }
         view.focus()
       }
     },
     redo: () => {
       const view = viewRef.current
       if (view) {
-        redo(view)
+        if (ytext) {
+          yRedoCommand?.(view)
+        } else {
+          cmRedo(view)
+        }
         view.focus()
       }
     },
@@ -203,10 +217,10 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
     const stringValue = typeof value === 'string' ? value : String(value || '')
 
     const startState = EditorState.create({
-      doc: stringValue,
+      doc: ytext ? ytext.toString() : stringValue,
       extensions: [
         markdown(),
-        history(),
+        ytext ? yCollab(ytext, null) : history(),
         editorTheme,
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
@@ -254,7 +268,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
             preventDefault: true
           },
           ...defaultKeymap,
-          ...historyKeymap
+          ...(ytext ? yUndoManagerKeymap : historyKeymap)
         ]),
         EditorView.domEventHandlers({
           scroll: (event) => {
@@ -279,16 +293,21 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
       view.destroy()
       viewRef.current = null
     }
-  }, [editorTheme]) // Recreate when theme changes
+  }, [editorTheme, ytext]) // Recreate when theme changes, or when switching to/from a Yjs-backed doc
 
   useEffect(() => {
+    // Yjs-backed tabs sync their document content via the yCollab binding above
+    // (ytext is the source of truth), not via this prop-driven replace. Running
+    // both would fight each other, so this whole effect is a no-op for them.
+    if (ytext) return
+
     const view = viewRef.current
     if (!view) return
-    
+
     // Ensure value is always a string
     const stringValue = typeof value === 'string' ? value : String(value || '')
     const currentValue = view.state.doc.toString()
-    
+
     if (stringValue !== currentValue) {
       isUpdatingRef.current = true
       view.dispatch({
@@ -300,7 +319,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ value, onChange, onScroll }
       })
       isUpdatingRef.current = false
     }
-  }, [value])
+  }, [value, ytext])
 
   return <div ref={editorRef} style={{ height: '100%', width: '100%' }} />
 })

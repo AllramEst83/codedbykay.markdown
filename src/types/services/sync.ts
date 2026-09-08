@@ -1,10 +1,13 @@
 import type { TabData } from './storage'
 
+export type NoteContentFormat = 'plain' | 'yjs'
+
 export interface CloudNote {
   id: string
   user_id: string
   title: string
-  content: string // Decrypted on client
+  content: string // Decrypted on client. For content_format 'yjs', this is base64-encoded Yjs state.
+  content_format: NoteContentFormat
   created_at: string
   updated_at: string
   last_synced_at: string | null

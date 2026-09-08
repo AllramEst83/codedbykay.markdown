@@ -28,6 +28,9 @@
     "react-syntax-highlighter": "^16.1.0",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
+    "y-codemirror.next": "^0.3.6",
+    "y-indexeddb": "^9.0.12",
+    "yjs": "^13.6.32",
     "zustand": "^5.0.1"
   },
   "devDependencies": {

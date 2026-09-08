@@ -7,7 +7,13 @@ import { getSupabaseClient } from '../supabase/client'
 import { localStorageService } from './localStorageService'
 import * as cloudStorage from './cloudStorageService'
 import { resolveConflict, areNotesIdentical } from './conflictResolver'
-import { syncImageReferencesInContent, migrateAllImagesToCloud, prefetchImagesInContent } from './imageSyncService'
+import {
+  syncImageReferencesInContent,
+  syncImageReferencesInYText,
+  migrateAllImagesToCloud,
+  prefetchImagesInContent,
+} from './imageSyncService'
+import * as yjsDocService from './yjsDocService'
 import { getDeviceId } from '../utils/deviceId'
 import type { TabData } from '../types/services'
 import type { CloudNote, SyncState, SyncQueueItem, RecentSyncInfo } from '../types/services/sync'
@@ -105,15 +111,70 @@ class SyncService {
     )
   }
 
-  private resolveNoteConflict(
+  /**
+   * Resolves conflicts between a local tab and its cloud counterpart.
+   *
+   * For 'yjs'-formatted notes, this bypasses conflictResolver.ts entirely: Yjs's CRDT
+   * merge is unconditionally safe (commutative, no data loss), so there's no "which
+   * side is newer" heuristic needed - the doc merges the remote update in, and we just
+   * report whether that changed anything locally and whether we still have unsent
+   * local changes to upload. conflictResolver.ts's line-diff/timestamp-LWW path stays
+   * fully intact, unmodified, for 'plain' notes.
+   */
+  private async resolveNoteConflict(
     localNote: TabData,
     cloudNote: CloudNote,
     options?: { forceMerge?: boolean }
-  ): {
+  ): Promise<{
     mergedNote: TabData
     shouldUpload: boolean
     shouldUpdateLocal: boolean
-  } {
+  }> {
+    const tabId = localNote.id
+
+    if (cloudNote.content_format === 'yjs') {
+      // Normal path. Also correctly handles a local tab that hasn't touched Yjs yet -
+      // getOrCreateNoteDoc starts it from an empty doc, so "merging" the remote update
+      // in is equivalent to adopting the cloud content wholesale.
+      const hadNewRemote = await yjsDocService.hasNewRemoteState(tabId, cloudNote.content)
+      if (hadNewRemote) {
+        yjsDocService.applyRemoteUpdate(tabId, cloudNote.content)
+      }
+      const mergedNote: TabData = {
+        ...localNote,
+        content: yjsDocService.getText(tabId),
+        title: yjsDocService.getTitle(tabId) ?? localNote.title,
+        contentFormat: 'yjs',
+        cloudId: localNote.cloudId || cloudNote.id,
+        cloudUpdatedAt: cloudNote.updated_at,
+      }
+      const shouldUpload = await yjsDocService.hasNewLocalState(tabId, cloudNote.content)
+      const shouldUpdateLocal = hadNewRemote && this.hasNoteContentChanged(mergedNote, localNote)
+      return { mergedNote, shouldUpload, shouldUpdateLocal }
+    }
+
+    if (localNote.contentFormat === 'yjs') {
+      // Cloud row hasn't caught up to this device's Yjs migration yet (rollout race,
+      // or a stale client wrote 'plain' after this device flipped the note). Never
+      // interpret plain cloud text as Yjs bytes: seed only if this device's doc is
+      // otherwise empty; if it already has real content, keep it and let the next
+      // upload flip the cloud row back to 'yjs' - the Yjs side always wins the format.
+      const isLocalDocEmpty = yjsDocService.getText(tabId).length === 0 && yjsDocService.getTitle(tabId) === undefined
+      if (isLocalDocEmpty) {
+        yjsDocService.seedNewNote(tabId, cloudNote.content, cloudNote.title)
+      }
+      const mergedNote: TabData = {
+        ...localNote,
+        content: yjsDocService.getText(tabId),
+        title: yjsDocService.getTitle(tabId) ?? localNote.title,
+        contentFormat: 'yjs',
+        cloudId: localNote.cloudId || cloudNote.id,
+        cloudUpdatedAt: cloudNote.updated_at,
+      }
+      return { mergedNote, shouldUpload: true, shouldUpdateLocal: isLocalDocEmpty }
+    }
+
+    // Legacy plain/plain path - fully unchanged behavior.
     const resolution = resolveConflict(localNote, cloudNote, options)
     const mergedNote: TabData = {
       ...resolution.resolvedNote,
@@ -129,6 +190,13 @@ class SyncService {
   }
 
   private async prepareNoteForUpload(note: TabData): Promise<TabData> {
+    if (note.contentFormat === 'yjs') {
+      const changed = await syncImageReferencesInYText(note.id, note.id)
+      if (!changed) {
+        return note
+      }
+      return { ...note, content: yjsDocService.getText(note.id) }
+    }
     const syncedContent = await syncImageReferencesInContent(note.content, note.id)
     if (syncedContent === note.content) {
       return note
@@ -164,6 +232,26 @@ class SyncService {
       lastSavedServerTime: hasValidTimestamp ? true : localNote.lastSavedServerTime,
       cloudId: localNote.cloudId || cloudNote.id,
       cloudUpdatedAt: cloudNote.updated_at,
+    }
+  }
+
+  /**
+   * Builds local TabData for a cloud note with no local counterpart yet (a brand-new
+   * download). For 'yjs' notes, merges the cloud bytes into a fresh doc registered
+   * under the new local id (== cloudNote.id, matching cloudNoteToTabData's convention)
+   * and reads back the derived display fields, since cloudNoteToTabData itself has no
+   * access to the Yjs doc registry.
+   */
+  private async hydrateCloudOnlyNote(cloudNote: CloudNote): Promise<TabData> {
+    const base = cloudStorage.cloudNoteToTabData(cloudNote)
+    if (cloudNote.content_format !== 'yjs') {
+      return base
+    }
+    yjsDocService.applyRemoteUpdate(base.id, cloudNote.content)
+    return {
+      ...base,
+      content: yjsDocService.getText(base.id),
+      title: yjsDocService.getTitle(base.id) ?? base.title,
     }
   }
 
@@ -335,7 +423,7 @@ class SyncService {
           notesToCreate.push(localNote)
         } else {
           // Note exists in both - merge and sync as needed
-          const { mergedNote, shouldUpload } = this.resolveNoteConflict(localNote, cloudNote)
+          const { mergedNote, shouldUpload } = await this.resolveNoteConflict(localNote, cloudNote)
           const baseNote: TabData = {
             ...mergedNote,
             cloudId: localNote.cloudId || cloudNote.id,
@@ -391,7 +479,7 @@ class SyncService {
 
         if (!hasLocalVersion) {
           // Cloud-only note - download to local
-          const tabData = cloudStorage.cloudNoteToTabData(cloudNote)
+          const tabData = await this.hydrateCloudOnlyNote(cloudNote)
           notesToSync.push(tabData)
           this.localToCloudIdMap.set(tabData.id, cloudNote.id)
           localStorageService.saveTabImmediately(tabData, { preserveLastSaved: true })
@@ -404,7 +492,7 @@ class SyncService {
           // Sync images in content first
           const noteToCreate = await this.prepareNoteForUpload(localNote)
 
-          const params = cloudStorage.tabDataToCreateParams(noteToCreate, this.deviceId)
+          const params = await cloudStorage.tabDataToCreateParams(noteToCreate, this.deviceId)
           const createdNote = await cloudStorage.createNote(params)
           
           this.localToCloudIdMap.set(localNote.id, createdNote.id)
@@ -664,7 +752,8 @@ class SyncService {
             console.log('Deleting note from realtime:', localId)
             localStorageService.removeTab(localId)
             this.localToCloudIdMap.delete(localId)
-            
+            yjsDocService.disposeNoteDoc(localId)
+
             // Notify to remove tab from UI
             this.triggerNoteDeletion(localId)
           }
@@ -801,8 +890,12 @@ class SyncService {
           return
         }
 
-        // For updates, check if content is identical to cloud before uploading
-        if (cloudId) {
+        // For updates, check if content is identical to cloud before uploading.
+        // Skipped for 'yjs' notes: a real conflict there is resolved losslessly via
+        // handleUpdateConflict's merge-and-retry path below, so this preemptive
+        // fetch-and-compare isn't needed for correctness, only as an optimization
+        // that doesn't apply cleanly to CRDT state (see resolveNoteConflict).
+        if (cloudId && localNote.contentFormat !== 'yjs') {
           try {
             const cloudNote = await cloudStorage.getNote(cloudId)
             if (areNotesIdentical(localNote, cloudNote)) {
@@ -835,7 +928,7 @@ class SyncService {
           }
         } else {
           // Create new cloud note
-          const params = cloudStorage.tabDataToCreateParams(noteToSync, this.deviceId)
+          const params = await cloudStorage.tabDataToCreateParams(noteToSync, this.deviceId)
           updatedCloud = await cloudStorage.createNote(params)
         }
         this.localToCloudIdMap.set(item.tabId, updatedCloud.id)
@@ -876,7 +969,7 @@ class SyncService {
         cloudUpdatedAt: cloudNote.updated_at,
       }
     }
-    const params = cloudStorage.tabDataToUpdateParams(noteWithExpected, cloudId, this.deviceId)
+    const params = await cloudStorage.tabDataToUpdateParams(noteWithExpected, cloudId, this.deviceId)
     return cloudStorage.updateNote(params)
   }
 
@@ -901,15 +994,18 @@ class SyncService {
     const cloudNote = await cloudStorage.getNote(cloudId)
     this.localToCloudIdMap.set(localNote.id, cloudNote.id)
 
-    // First, check if content is actually identical - if so, no real conflict
-    if (areNotesIdentical(localNote, cloudNote)) {
+    // First, check if content is actually identical - if so, no real conflict.
+    // (For 'yjs' notes this shortcut doesn't apply - cloudNote.content is opaque Yjs
+    // bytes, not comparable as text; resolveNoteConflict's shouldUpload check below
+    // covers the equivalent "nothing to do" case for that format instead.)
+    if (localNote.contentFormat !== 'yjs' && areNotesIdentical(localNote, cloudNote)) {
       console.log('Conflict resolved - content is identical, updating metadata only:', cloudId)
       this.persistCloudMetadata(localNote, cloudNote)
       this.markNoteSynced(localNote.id, cloudNote.updated_at, localNote.title, localNote.content)
       return
     }
 
-    const { mergedNote, shouldUpload, shouldUpdateLocal } = this.resolveNoteConflict(localNote, cloudNote, {
+    const { mergedNote, shouldUpload, shouldUpdateLocal } = await this.resolveNoteConflict(localNote, cloudNote, {
       forceMerge: true,
     })
     const baseNote: TabData = {
@@ -927,8 +1023,10 @@ class SyncService {
     }
 
     if (!shouldUpload) {
-      // Cloud already matches merged state
-      this.markNoteSynced(localNote.id, cloudNote.updated_at, cloudNote.title, cloudNote.content)
+      // Cloud already matches merged state. Use mergedNote's (derived display) fields
+      // rather than cloudNote's raw fields - for 'yjs' notes cloudNote.content is
+      // opaque Yjs bytes, not the text this note's dedup-cache hash needs.
+      this.markNoteSynced(localNote.id, cloudNote.updated_at, mergedNote.title, mergedNote.content)
       return
     }
 
@@ -1145,7 +1243,7 @@ class SyncService {
   }
 
   private async addCloudNoteToLocal(cloudNote: CloudNote, sourceLabel: string): Promise<void> {
-    const tabData = cloudStorage.cloudNoteToTabData(cloudNote)
+    const tabData = await this.hydrateCloudOnlyNote(cloudNote)
     this.localToCloudIdMap.set(tabData.id, cloudNote.id)
     localStorageService.saveTabImmediately(tabData, { preserveLastSaved: true })
     await prefetchImagesInContent(tabData.content)
@@ -1158,6 +1256,31 @@ class SyncService {
     cloudNote: CloudNote,
     sourceLabel: string
   ): Promise<void> {
+    if (localNote.contentFormat === 'yjs' || cloudNote.content_format === 'yjs') {
+      // CRDT merge is unconditionally safe - no "who's newer" branch needed here,
+      // unlike the legacy path below. resolveNoteConflict already applies the
+      // remote update into the doc and reports what changed.
+      const { mergedNote, shouldUpload, shouldUpdateLocal } = await this.resolveNoteConflict(localNote, cloudNote)
+
+      if (shouldUpdateLocal) {
+        await prefetchImagesInContent(mergedNote.content)
+        localStorageService.saveTabImmediately(mergedNote, { preserveLastSaved: true })
+        console.log(`Updating note from ${sourceLabel}:`, mergedNote)
+        this.triggerNoteUpdate([mergedNote])
+      } else {
+        this.persistCloudMetadata(localNote, cloudNote)
+        console.log(`No content changes from ${sourceLabel}, metadata refreshed`)
+      }
+      this.markNoteSynced(localNote.id, cloudNote.updated_at, mergedNote.title, mergedNote.content)
+
+      // If we still have local changes the cloud doesn't have, push them up to converge devices.
+      if (shouldUpload) {
+        this.queueNoteForSync(localNote.id, 'update')
+      }
+      return
+    }
+
+    // Legacy plain/plain path - fully unchanged behavior.
     // Fast-path: no changes (after normalization) -> refresh metadata only
     if (areNotesIdentical(localNote, cloudNote)) {
       this.persistCloudMetadata(localNote, cloudNote)

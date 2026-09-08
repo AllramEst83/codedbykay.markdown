@@ -62,6 +62,7 @@ Deno.serve(async (req) => {
             user_id: note.user_id,
             title: note.title,
             content: decryptedContent,
+            content_format: note.content_format,
             created_at: note.created_at,
             updated_at: note.updated_at,
             last_synced_at: note.last_synced_at,
@@ -70,12 +71,14 @@ Deno.serve(async (req) => {
           };
         } catch (err) {
           console.error(`Failed to decrypt note ${note.id}:`, err);
-          // Return note with empty content if decryption fails
+          // Return note with empty plain content if decryption fails - never claim
+          // 'yjs' format here, since the client would try to decode garbage bytes.
           return {
             id: note.id,
             user_id: note.user_id,
             title: note.title,
             content: '',
+            content_format: 'plain',
             created_at: note.created_at,
             updated_at: note.updated_at,
             last_synced_at: note.last_synced_at,

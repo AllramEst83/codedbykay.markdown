@@ -19,7 +19,7 @@ import './App.css'
 
 function App() {
   const { previewTheme } = useTheme()
-  const { tabs, activeTabId, updateTabContent, addTab } = useTabs()
+  const { tabs, activeTabId, updateTabContent, addTab, getYText } = useTabs()
   const editorRef = useRef<EditorRef | null>(null)
   const [isPreviewScrolling, setIsPreviewScrolling] = useState(false)
   const [isEditorScrolling, setIsEditorScrolling] = useState(false)
@@ -280,6 +280,7 @@ function App() {
                   value={markdown}
                   onChange={handleMarkdownChange}
                   onScroll={handleEditorScroll}
+                  ytext={activeTabId ? getYText(activeTabId) : undefined}
                 />
               </div>
             )}

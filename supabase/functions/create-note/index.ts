@@ -7,6 +7,7 @@ import { encrypt } from '../_shared/crypto.ts';
 interface CreateNoteRequest {
   title: string;
   content: string;
+  content_format?: 'plain' | 'yjs';
   local_id?: string;
   device_id?: string;
 }
@@ -57,6 +58,7 @@ Deno.serve(async (req) => {
         user_id: userId,
         title: body.title,
         content: encrypted.encryptedKey,
+        content_format: body.content_format || 'plain',
         encrypted_key: encrypted.encryptedKey,
         iv: encrypted.iv,
         auth_tag: encrypted.authTag,
@@ -75,8 +77,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Never echo ciphertext/encryption metadata back to the client - only the
+    // fields callers actually use (id/updated_at/etc). Content is fetched
+    // (and decrypted) separately via get-note/get-notes.
+    const note = {
+      id: data.id,
+      user_id: data.user_id,
+      title: data.title,
+      content_format: data.content_format,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      last_synced_at: data.last_synced_at,
+      device_id: data.device_id,
+      local_id: data.local_id,
+    };
+
     return jsonResponse(
-      { note: data, server_time: new Date().toISOString() },
+      { note, server_time: new Date().toISOString() },
       { status: 201, headers: corsHeaders },
     );
   } catch (err) {
