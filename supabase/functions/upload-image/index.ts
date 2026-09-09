@@ -85,13 +85,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get public URL
+    // The bucket is private - this URL is never fetched directly by the
+    // browser, only used as a stable string the client parses the storage
+    // path back out of. Actual image bytes are fetched via the authenticated
+    // storage.download() route, which enforces the per-user folder RLS
+    // policies (see cloudStorageService/imageSyncService on the client).
     const { data: urlData } = supabase.storage
       .from('user-images')
       .getPublicUrl(storagePath);
 
     return jsonResponse(
-      { 
+      {
         path: data.path,
         url: urlData.publicUrl,
         imageId: imageId,

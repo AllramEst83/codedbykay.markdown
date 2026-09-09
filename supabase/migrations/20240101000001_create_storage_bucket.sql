@@ -1,5 +1,7 @@
--- Create user-images bucket (idempotent)
-INSERT INTO storage.buckets (id, name, public) 
+-- Create user-images bucket (idempotent). Private: images are fetched
+-- client-side via the authenticated storage.download() route, which enforces
+-- the per-user folder RLS policies below rather than being world-readable.
+INSERT INTO storage.buckets (id, name, public)
 VALUES ('user-images', 'user-images', false)
 ON CONFLICT (id) DO NOTHING;
 

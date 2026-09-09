@@ -121,20 +121,37 @@ export async function getCachedCloudImage(url: string): Promise<Blob | null> {
 }
 
 /**
- * Fetches an image from Supabase Storage and caches it
+ * Extracts the storage object path (bucket-relative key) from a stored
+ * Supabase Storage URL. The bucket is private, so this URL string is never
+ * fetched directly - it's just a stable container the path was embedded in.
+ */
+function getStoragePathFromUrl(url: string): string {
+  const marker = '/storage/v1/object/public/user-images/'
+  const index = url.indexOf(marker)
+  if (index === -1) {
+    throw new Error(`Not a recognized Supabase Storage URL: ${url}`)
+  }
+  return decodeURIComponent(url.slice(index + marker.length))
+}
+
+/**
+ * Fetches an image from Supabase Storage and caches it.
+ * Uses the authenticated download route so the per-user folder RLS policies
+ * on storage.objects are enforced - only the uploading user's own session can
+ * retrieve it, unlike the unauthenticated /object/public/ endpoint.
  */
 export async function fetchAndCacheCloudImage(url: string): Promise<Blob> {
   try {
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.statusText}`)
+    const supabase = getSupabaseClient()
+    const path = getStoragePathFromUrl(url)
+    const { data: blob, error } = await supabase.storage.from('user-images').download(path)
+    if (error || !blob) {
+      throw new Error(error?.message || 'Failed to fetch image')
     }
-    
-    const blob = await response.blob()
-    
+
     // Cache for future use
     await cacheCloudImage(url, blob)
-    
+
     return blob
   } catch (error) {
     console.error('Failed to fetch cloud image:', error)

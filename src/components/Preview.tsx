@@ -16,28 +16,31 @@ const MarkdownImage = ({ src, alt, ...props }: { src?: string; alt?: string; [ke
   const [imageUrlCache] = useState<Map<string, string>>(new Map())
 
   useEffect(() => {
-    if (src && src.startsWith('md-editor-image://')) {
-      // Check cache first
-      const cached = imageUrlCache.get(src)
-      if (cached) {
-        setImageSrc(cached)
-        return
-      }
-      
-      // Convert custom URL to object URL
-      getImageUrlForRendering(src).then((url) => {
-        if (url) {
-          imageUrlCache.set(src, url)
-          setImageSrc(url)
-        }
-      }).catch(() => {
-        // If image not found, keep original URL (will show broken image)
-        setImageSrc(src)
-      })
-    } else {
-      // For blob URLs, data URLs, or regular URLs, use as-is
+    if (!src || src.startsWith('blob:') || src.startsWith('data:')) {
+      // No conversion needed - use as-is
       setImageSrc(src || '')
+      return
     }
+
+    // Check cache first
+    const cached = imageUrlCache.get(src)
+    if (cached) {
+      setImageSrc(cached)
+      return
+    }
+
+    // Local (md-editor-image://) and cloud storage URLs both need conversion
+    // to an object URL - cloud images are fetched via an authenticated,
+    // RLS-enforced request rather than loaded directly as <img src>.
+    getImageUrlForRendering(src).then((url) => {
+      if (url) {
+        imageUrlCache.set(src, url)
+        setImageSrc(url)
+      }
+    }).catch(() => {
+      // If image not found, keep original URL (will show broken image)
+      setImageSrc(src)
+    })
   }, [src, imageUrlCache])
   
   return (
